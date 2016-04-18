@@ -35,7 +35,7 @@ def concentric_rectangle_path(size):
     Each row is a generator that yields pixel coordinates.
     """
     # TODO don't make this a single path / spiral
-    def conc_rect_iter(min_x, max_x, min_y, max_y):
+    def conc_rect_iter():
         for x in xrange(min_x, max_x):
             yield (x, min_y)
         for y in xrange(min_y + 1, max_y):
@@ -50,7 +50,7 @@ def concentric_rectangle_path(size):
     min_y, max_y = 0, height
 
     while min_x < max_x and min_y < max_y:
-        yield conc_rect_iter(min_x, max_x, min_y, max_y)
+        yield conc_rect_iter()
 
         min_x += 1
         min_y += 1
@@ -143,7 +143,7 @@ def main():
     img = Image.open(imgfile)
     original_pixels = list(img.getdata())
 
-    out_pixels = sort_pixels(original_pixels, img.size, vertical=True, max_interval=500, key=sum)
+    out_pixels = sort_pixels(original_pixels, img.size, randomize=True, vertical=False, max_interval=1000, key=lambda p: sum(p)/10)
 
     # write output image
     img_out = Image.new(img.mode, img.size)
