@@ -4,6 +4,7 @@ from random import randint, random
 import sys
 
 from PIL import Image
+from pixelkeys import PIXEL_KEY_DICT
 
 
 def horizontal_path(size):
@@ -144,6 +145,9 @@ def main():
                         help="The size of each sorting interval, in pixels. If 0, whole row is sorted.")
     parser.add_argument("-r", "--randomize", action='store_true', default=False,
                         help="Whether to randomize pixel-sorting intervals")
+    parser.add_argument("-R", "--reverse", action='store_true', default=False,
+                        help="Whether to reverse pixel-sorting order")
+    parser.add_argument("-s", "--sortkey", type=str, default=None, help="Function applied to pixels to sort them.")
     parser.add_argument("-v", "--vertical", action='store_true', default=False,
                         help="Whether to pixel-sort vertically instead of horizontally")
     args = parser.parse_args()
@@ -152,7 +156,8 @@ def main():
     img = Image.open(args.infile)
     original_pixels = list(img.getdata())
 
-    out_pixels = sort_pixels(original_pixels, img.size, randomize=args.randomize, vertical=args.vertical, max_interval=args.interval, key=sum)
+    key = PIXEL_KEY_DICT.get(args.sortkey.lower(), None)
+    out_pixels = sort_pixels(original_pixels, img.size, randomize=args.randomize, vertical=args.vertical, max_interval=args.interval, reverse=args.reverse, key=key)
 
     # write output image
     img_out = Image.new(img.mode, img.size)
