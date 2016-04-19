@@ -139,7 +139,9 @@ def clamp(x, a, b):
 def main():
     parser = argparse.ArgumentParser(description='A tool for pixel-sorting images')
     parser.add_argument("infile", help="The input image")
-    parser.add_argument("-o", "--outfile", help="The output image", required=True)
+    parser.add_argument("-o", "--outfile", required=True,  help="The output image")
+    parser.add_argument("-i", "--interval", type=int, default=0,
+                        help="The size of each sorting interval, in pixels. If 0, whole row is sorted.")
     parser.add_argument("-r", "--randomize", action='store_true', default=False,
                         help="Whether to randomize pixel-sorting intervals")
     parser.add_argument("-v", "--vertical", action='store_true', default=False,
@@ -150,7 +152,7 @@ def main():
     img = Image.open(args.infile)
     original_pixels = list(img.getdata())
 
-    out_pixels = sort_pixels(original_pixels, img.size, randomize=args.randomize, vertical=args.vertical, max_interval=50, key=lambda p: sum(p))
+    out_pixels = sort_pixels(original_pixels, img.size, randomize=args.randomize, vertical=args.vertical, max_interval=args.interval, key=sum)
 
     # write output image
     img_out = Image.new(img.mode, img.size)
