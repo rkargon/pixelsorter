@@ -1,4 +1,5 @@
 #!/usr/bin/python
+import argparse
 from random import randint, random
 import sys
 
@@ -95,7 +96,6 @@ def sort_pixels(pixels, size, vertical=False, max_interval=100, randomize=False,
         pixel_iterator = vertical_path(size)
     else:
         pixel_iterator = horizontal_path(size)
-    pixel_iterator = concentric_rectangle_path(size)
 
     # for each path
     for path in pixel_iterator:
@@ -137,18 +137,25 @@ def clamp(x, a, b):
     return max(a, min(x, b))
 
 def main():
-    imgfile, outfile = sys.argv[1:]
+    parser = argparse.ArgumentParser(description='A tool for pixel-sorting images')
+    parser.add_argument("infile", help="The input image")
+    parser.add_argument("-o", "--outfile", help="The output image", required=True)
+    parser.add_argument("-r", "--randomize", action='store_true', default=False,
+                        help="Whether to randomize pixel-sorting intervals")
+    parser.add_argument("-v", "--vertical", action='store_true', default=False,
+                        help="Whether to pixel-sort vertically instead of horizontally")
+    args = parser.parse_args()
 
     # load image
-    img = Image.open(imgfile)
+    img = Image.open(args.infile)
     original_pixels = list(img.getdata())
 
-    out_pixels = sort_pixels(original_pixels, img.size, randomize=True, vertical=False, max_interval=1000, key=lambda p: sum(p)/10)
+    out_pixels = sort_pixels(original_pixels, img.size, randomize=args.randomize, vertical=args.vertical, max_interval=50, key=lambda p: sum(p))
 
     # write output image
     img_out = Image.new(img.mode, img.size)
     img_out.putdata(out_pixels)
-    img_out.save(outfile)
+    img_out.save(args.outfile)
 
 
 if __name__ == '__main__':
