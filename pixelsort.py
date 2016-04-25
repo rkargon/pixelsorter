@@ -1,9 +1,9 @@
 #!/usr/bin/python
 import argparse
-from random import randint, random
-import sys
+from random import randint
 
 from PIL import Image
+
 from pixelkeys import PIXEL_KEY_DICT
 
 
@@ -36,7 +36,6 @@ def concentric_rectangle_path(size):
     :return: A generator that yields a set of rows through the image.
     Each row is a generator that yields pixel coordinates.
     """
-    # TODO don't make this a single path / spiral
     def conc_rect_iter():
         for x in xrange(min_x, max_x):
             yield (x, min_y)
@@ -58,7 +57,6 @@ def concentric_rectangle_path(size):
         min_y += 1
         max_x -= 1
         max_y -= 1
-
 
 
 def coords_to_index(coords, width):
@@ -85,11 +83,11 @@ def sort_pixels(pixels, size, vertical=False, max_interval=100, randomize=False,
     :param reverse: Whether or not to reverse the direction of the sorting
     :return: The pixels of the resulting image as a list of (R,G,B) tuples
     """
-    #TODO get HSV values, other color spaces/profiles/models/whatever
+
+    # TODO get HSV values, other color spaces/profiles/models/whatever
     out_pixels = list(pixels)
     width, height = size
 
-    # TODO more types of paths, not just horizontal/vertical
     # select path to go through image
     # pixel_iterator is an iterator that returns a set of different 'lines', or 'rows' through the image.
     #   Each line is itself an iterator that returns a set of coordinates of pixels in the image.
@@ -103,20 +101,22 @@ def sort_pixels(pixels, size, vertical=False, max_interval=100, randomize=False,
         path_finished = False
         # traverse path until it is finished
         while not path_finished:
-            if randomize:
+            if randomize and max_interval > 0:
                 interval = randint(1, max_interval)
             else:
                 interval = max_interval
 
             # get pixel coordinates of path
             px_indices = []
-            for i in xrange(interval):
+            i = 0
+            while i < interval or interval == 0:
                 try:
                     coords = path.next()
                 except StopIteration:
                     path_finished = True
                     break
                 px_indices.append(coords_to_index(coords, width))
+                i += 1
 
             # sort pixels, apply to output image
             sorted_pixels = sorted([pixels[i] for i in px_indices], key=key, reverse=reverse)
@@ -136,6 +136,7 @@ def clamp(x, a, b):
     :return: The clamped value
     """
     return max(a, min(x, b))
+
 
 def main():
     parser = argparse.ArgumentParser(description='A tool for pixel-sorting images')
