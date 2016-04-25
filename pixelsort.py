@@ -84,7 +84,6 @@ def sort_pixels(pixels, size, vertical=False, max_interval=100, randomize=False,
     :return: The pixels of the resulting image as a list of (R,G,B) tuples
     """
 
-    # TODO get HSV values, other color spaces/profiles/models/whatever
     out_pixels = list(pixels)
     width, height = size
 
@@ -109,6 +108,7 @@ def sort_pixels(pixels, size, vertical=False, max_interval=100, randomize=False,
             # get pixel coordinates of path
             px_indices = []
             i = 0
+            # if interval is 0, just sort whole line at once
             while i < interval or interval == 0:
                 try:
                     coords = path.next()
