@@ -36,6 +36,7 @@ def concentric_rectangle_path(size):
     :return: A generator that yields a set of rows through the image.
     Each row is a generator that yields pixel coordinates.
     """
+
     def conc_rect_iter():
         for x in xrange(min_x, max_x):
             yield (x, min_y)
@@ -67,10 +68,10 @@ def coords_to_index(coords, width):
     :param width: The width of the image
     :return: The index of the corresponding pixel
     """
-    return coords[1]*width + coords[0]
+    return coords[1] * width + coords[0]
 
 
-def sort_pixels(pixels, size, vertical=False, max_interval=100, randomize=False, key=None, reverse=False):
+def sort_pixels(pixels, size, vertical=False, max_interval=100, randomize=False, key=None, discretize=0, reverse=False):
     """
     Given an image as a list of pixels, applies pixel sorting and returns the new pixels
     :param pixels: A list of tuples (R,G,B) representing the pixels of the image
@@ -86,6 +87,11 @@ def sort_pixels(pixels, size, vertical=False, max_interval=100, randomize=False,
 
     out_pixels = list(pixels)
     width, height = size
+
+    if discretize > 0:
+        sort_key = lambda p: int(key(p)/discretize)
+    else:
+        sort_key = key
 
     # select path to go through image
     # pixel_iterator is an iterator that returns a set of different 'lines', or 'rows' through the image.
@@ -119,7 +125,7 @@ def sort_pixels(pixels, size, vertical=False, max_interval=100, randomize=False,
                 i += 1
 
             # sort pixels, apply to output image
-            sorted_pixels = sorted([pixels[i] for i in px_indices], key=key, reverse=reverse)
+            sorted_pixels = sorted([pixels[i] for i in px_indices], key=sort_key, reverse=reverse)
             for i in xrange(len(px_indices)):
                 index = px_indices[i]
                 pixel = sorted_pixels[i]
@@ -141,7 +147,10 @@ def clamp(x, a, b):
 def main():
     parser = argparse.ArgumentParser(description='A tool for pixel-sorting images')
     parser.add_argument("infile", help="The input image")
-    parser.add_argument("-o", "--outfile", required=True,  help="The output image")
+    parser.add_argument("-o", "--outfile", required=True, help="The output image")
+    parser.add_argument("-d", "--discretize", type=int, default=0,
+                        help="Divides float values of pixels by the given integer amount, and casts to an int. "
+                             "Used to bin pixel values into several discrete categories.  ")
     parser.add_argument("-i", "--interval", type=int, default=0,
                         help="The size of each sorting interval, in pixels. If 0, whole row is sorted.")
     parser.add_argument("-r", "--randomize", action='store_true', default=False,
@@ -158,7 +167,8 @@ def main():
     original_pixels = list(img.getdata())
 
     key = PIXEL_KEY_DICT.get(args.sortkey.lower(), None)
-    out_pixels = sort_pixels(original_pixels, img.size, randomize=args.randomize, vertical=args.vertical, max_interval=args.interval, reverse=args.reverse, key=key)
+    out_pixels = sort_pixels(original_pixels, img.size, randomize=args.randomize, vertical=args.vertical,
+                             max_interval=args.interval, discretize=args.discretize, reverse=args.reverse, key=key)
 
     # write output image
     img_out = Image.new(img.mode, img.size)
