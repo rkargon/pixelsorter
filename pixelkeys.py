@@ -40,12 +40,16 @@ def luma(p):
     return 0.2126*p[0] + 0.7152*p[1] + 0.0722*p[2]
 
 
+def chroma(p):
+    return max(p) - min(p)
+
+
 def hue(p):
     """
     Returns the saturation of a pixel.
     Gray pixels have saturation 0.
     :param p: A tuple of (R,G,B) values
-    :return: A saturation value between
+    :return: A saturation value between 0 and 360
     """
     min_c = min(p)
     max_c = max(p)
@@ -64,15 +68,30 @@ def hue(p):
         h += 360
     return h
 
+
+def saturation(p):
+    """
+    Returns the saturation of a pixel, defined as the ratio of chroma to value.
+    :param p: A tuple of (R,G,B) values
+    :return: The saturation of a pixel, from 0 to 1
+    """
+    max_c = max(p)
+    min_c = min(p)
+    if max_c == 0:
+        return 0
+    return (max_c - min_c) / float(max_c)
+
 PIXEL_KEY_DICT = {
     'blue': blue,
     'brightness': intensity,
+    'chroma': chroma,
     'green': green,
     'hue': hue,
     'intensity': intensity,
     'lightness': lightness,
     'luma': luma,
     'red': red,
+    'saturation': saturation,
     'sum': sum,
     'value': value,
 }
