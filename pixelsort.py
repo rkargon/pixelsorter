@@ -74,6 +74,7 @@ def sort_pixels(pixels, size, vertical=False, path=None, max_interval=100, rando
 
 
 def main():
+    # set up command line argument parser
     parser = argparse.ArgumentParser(description='A tool for pixel-sorting images')
     parser.add_argument("infile", help="The input image")
     parser.add_argument("-o", "--outfile", required=True, help="The output image")

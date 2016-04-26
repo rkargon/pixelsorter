@@ -6,6 +6,7 @@ Each function produces an iterator of 'rows' over a given image, and each 'row' 
 representing pixels.
 However, the paths produced don't have to be necessarily actual rows or columns.
 """
+
 from random import random
 from util import clamp
 
@@ -33,6 +34,12 @@ def vertical_path(size):
 
 
 def diagonal_path(size):
+    """
+    Creates a set of diagonal paths moving from the top left to the bottom right of the image.
+    Successive rows start at the bottom-left corner and move up until the top-right corner.
+    :param size: The dimensions of the image (width, height)
+    :return: A generator that yields a set of paths, each path is a set of (x,y) pixel coordinates.
+    """
     width, height = size
     return (((x, x+offset) for x in range(max(0, -offset), min(width, height-offset))) for offset in xrange(height - 1, -width, -1))
 
@@ -69,6 +76,12 @@ def concentric_rectangle_path(size):
 
 
 def random_walk_path(size):
+    """
+    A generator that yields random walks from the left to the right of an image.
+    :param size: A tuple (width, height) of the image size
+    :return: A generator that returns a set of random walks through the image.
+    Each random walk is an iterator if tuples (x,y) of pixels moving horizontally across the image.
+    """
 
     def random_walk_iter(y_tmp):
         for x in xrange(width):
