@@ -5,73 +5,12 @@ from random import randint
 from PIL import Image
 
 from pixelkeys import PIXEL_KEY_DICT
+from pixelpaths import vertical_path, horizontal_path, PIXEL_PATH_DICT
+from util import coords_to_index
 
 
-def horizontal_path(size):
-    """
-    Creates a generator for progressing horizontally through an image.
-    :param size: A tuple (width, height) of the image size
-    :return: A generator that yields a set of rows through the image.
-    Each row is a generator that yields pixel coordinates.
-    """
-    width, height = size
-    return (((x, y) for x in xrange(width)) for y in xrange(height))
-
-
-def vertical_path(size):
-    """
-    Creates a generator for progressing vertically through an image.
-    :param size: A tuple (width, height) of the image size
-    :return: A generator that yields a set of columns through the image.
-    Each column is a generator that yields pixel coordinates.
-    """
-    width, height = size
-    return (((x, y) for y in xrange(height)) for x in xrange(width))
-
-
-def concentric_rectangle_path(size):
-    """
-    Creates a generator for progressing through an image
-    :param size: A tuple (width, height) of the image size
-    :return: A generator that yields a set of rows through the image.
-    Each row is a generator that yields pixel coordinates.
-    """
-
-    def conc_rect_iter():
-        for x in xrange(min_x, max_x):
-            yield (x, min_y)
-        for y in xrange(min_y + 1, max_y):
-            yield (max_x - 1, y)
-        for x in xrange(max_x - 2, min_x - 1, -1):
-            yield (x, max_y - 1)
-        for y in xrange(max_y - 2, min_y, -1):
-            yield (min_x, y)
-
-    width, height = size
-    min_x, max_x = 0, width
-    min_y, max_y = 0, height
-
-    while min_x < max_x and min_y < max_y:
-        yield conc_rect_iter()
-
-        min_x += 1
-        min_y += 1
-        max_x -= 1
-        max_y -= 1
-
-
-def coords_to_index(coords, width):
-    """
-    Converts x,y coordinates of an image (with (0,0) in in the top-left corner) to an index
-     in a 1-D array of pixels
-    :param coords: A tuple (x,y)
-    :param width: The width of the image
-    :return: The index of the corresponding pixel
-    """
-    return coords[1] * width + coords[0]
-
-
-def sort_pixels(pixels, size, vertical=False, max_interval=100, randomize=False, key=None, discretize=0, reverse=False):
+def sort_pixels(pixels, size, vertical=False, path=None, max_interval=100, randomize=False, key=None, discretize=0,
+                reverse=False):
     """
     Given an image as a list of pixels, applies pixel sorting and returns the new pixels
     :param pixels: A list of tuples (R,G,B) representing the pixels of the image
@@ -94,12 +33,13 @@ def sort_pixels(pixels, size, vertical=False, max_interval=100, randomize=False,
         sort_key = key
 
     # select path to go through image
-    # pixel_iterator is an iterator that returns a set of different 'lines', or 'rows' through the image.
-    #   Each line is itself an iterator that returns a set of coordinates of pixels in the image.
-    if vertical:
-        pixel_iterator = vertical_path(size)
+    if path is None:
+        if vertical:
+            pixel_iterator = vertical_path(size)
+        else:
+            pixel_iterator = horizontal_path(size)
     else:
-        pixel_iterator = horizontal_path(size)
+        pixel_iterator = path(size)
 
     # for each path
     for path in pixel_iterator:
@@ -133,17 +73,6 @@ def sort_pixels(pixels, size, vertical=False, max_interval=100, randomize=False,
     return out_pixels
 
 
-def clamp(x, a, b):
-    """
-    Clamps a value x between a minimum a and a maximum b
-    :param x: The value to clamp
-    :param a: The minimum
-    :param b: The maximum
-    :return: The clamped value
-    """
-    return max(a, min(x, b))
-
-
 def main():
     parser = argparse.ArgumentParser(description='A tool for pixel-sorting images')
     parser.add_argument("infile", help="The input image")
@@ -153,11 +82,13 @@ def main():
                              "Used to bin pixel values into several discrete categories.  ")
     parser.add_argument("-i", "--interval", type=int, default=0,
                         help="The size of each sorting interval, in pixels. If 0, whole row is sorted.")
+    parser.add_argument("-p", "--path", type=str, default="",
+                        help="The type of path used to sort over the image. Horizontal by default.")
     parser.add_argument("-r", "--randomize", action='store_true', default=False,
                         help="Whether to randomize pixel-sorting intervals")
     parser.add_argument("-R", "--reverse", action='store_true', default=False,
                         help="Whether to reverse pixel-sorting order")
-    parser.add_argument("-s", "--sortkey", type=str, default=None, help="Function applied to pixels to sort them.")
+    parser.add_argument("-s", "--sortkey", type=str, default="", help="Function applied to pixels to sort them.")
     parser.add_argument("-v", "--vertical", action='store_true', default=False,
                         help="Whether to pixel-sort vertically instead of horizontally")
     args = parser.parse_args()
@@ -167,7 +98,8 @@ def main():
     original_pixels = list(img.getdata())
 
     key = PIXEL_KEY_DICT.get(args.sortkey.lower(), None)
-    out_pixels = sort_pixels(original_pixels, img.size, randomize=args.randomize, vertical=args.vertical,
+    path = PIXEL_PATH_DICT.get(args.path.lower(), None)
+    out_pixels = sort_pixels(original_pixels, img.size, randomize=args.randomize, vertical=args.vertical, path=path,
                              max_interval=args.interval, discretize=args.discretize, reverse=args.reverse, key=key)
 
     # write output image
