@@ -41,7 +41,8 @@ def diagonal_path(size):
     :return: A generator that yields a set of paths, each path is a set of (x,y) pixel coordinates.
     """
     width, height = size
-    return (((x, x+offset) for x in range(max(0, -offset), min(width, height-offset))) for offset in xrange(height - 1, -width, -1))
+    return (((x, x + offset) for x in range(max(0, -offset), min(width, height - offset))) for offset in
+            xrange(height - 1, -width, -1))
 
 
 def concentric_rectangle_path(size):

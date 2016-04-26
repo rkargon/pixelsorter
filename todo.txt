@@ -1,7 +1,5 @@
 TODO for Pixelsorting
 ---------------------
  - add tests
- - add option for progressive increasing of interval amount
  - integrate tiling
  - use image contrast / edge detection as boundaries for sorting
- - random walk paths, diagonal path, etc.

@@ -9,8 +9,8 @@ from pixelpaths import vertical_path, horizontal_path, PIXEL_PATH_DICT
 from util import coords_to_index
 
 
-def sort_pixels(pixels, size, vertical=False, path=None, max_interval=100, randomize=False, key=None, discretize=0,
-                reverse=False):
+def sort_pixels(pixels, size, vertical=False, path=None, max_interval=100, progressive_amount=0, randomize=False,
+                key=None, discretize=0, reverse=False):
     """
     Given an image as a list of pixels, applies pixel sorting and returns the new pixels
     :param pixels: A list of tuples (R,G,B) representing the pixels of the image
@@ -41,15 +41,24 @@ def sort_pixels(pixels, size, vertical=False, path=None, max_interval=100, rando
     else:
         pixel_iterator = path(size)
 
+    # check if interval should increase progressively through image
+    if progressive_amount > 0:
+        current_max_interval = max_interval * progressive_amount
+    else:
+        current_max_interval = max_interval
+
     # for each path
     for path in pixel_iterator:
         path_finished = False
         # traverse path until it is finished
         while not path_finished:
-            if randomize and max_interval > 0:
-                interval = randint(1, max_interval)
+            if progressive_amount > 0:
+                current_max_interval += max_interval * progressive_amount
+
+            if randomize and current_max_interval > 0:
+                interval = randint(1, int(current_max_interval)+1)
             else:
-                interval = max_interval
+                interval = current_max_interval
 
             # get pixel coordinates of path
             px_indices = []
@@ -85,6 +94,9 @@ def main():
                         help="The size of each sorting interval, in pixels. If 0, whole row is sorted.")
     parser.add_argument("-p", "--path", type=str, default="",
                         help="The type of path used to sort over the image. Horizontal by default.")
+    parser.add_argument("--progressive-amount", type=float, default=0,
+                        help="How fast interval size should increase as one moves through the image. "
+                             "This is a ratio of the max interval size.")
     parser.add_argument("-r", "--randomize", action='store_true', default=False,
                         help="Whether to randomize pixel-sorting intervals")
     parser.add_argument("-R", "--reverse", action='store_true', default=False,
@@ -101,7 +113,7 @@ def main():
     key = PIXEL_KEY_DICT.get(args.sortkey.lower(), None)
     path = PIXEL_PATH_DICT.get(args.path.lower(), None)
     out_pixels = sort_pixels(original_pixels, img.size, randomize=args.randomize, vertical=args.vertical, path=path,
-                             max_interval=args.interval, discretize=args.discretize, reverse=args.reverse, key=key)
+                             max_interval=args.interval, progressive_amount=args.progressive_amount, discretize=args.discretize, reverse=args.reverse, key=key)
 
     # write output image
     img_out = Image.new(img.mode, img.size)
