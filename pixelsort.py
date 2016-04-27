@@ -82,6 +82,46 @@ def sort_pixels(pixels, size, vertical=False, path=None, max_interval=100, progr
     return out_pixels
 
 
+def get_tile_from_image(image, size, top_left_corner, tile_size):
+    tile_pixels = []
+    # crop tile if necessary
+    tile_x = min(size[0] - top_left_corner[0], tile_size[0])
+    tile_y = min(size[1] - top_left_corner[1], tile_size[1])
+    tile_size = tile_x, tile_y
+    for y in xrange(tile_size[1]):
+        for x in xrange(tile_size[0]):
+            coords = (x + top_left_corner[0], y + top_left_corner[1])
+            tile_pixels.append(image[coords_to_index(coords, size[0])])
+    return tile_pixels, tile_size
+
+
+def apply_tile_to_image(image, size, tile, tile_size, tile_corner):
+    """
+    Copies a tile with a given offset onto an image
+    :param image: The image the file is to be copied onto (as a list of (R,G,B) tuples)
+    :param size: The size of the image as a tuple (width, height)
+    :param tile: The tile to be copied over (as a list of (R,G,B) tuples)
+    :param tile_size: The size of the tile as a tuple (width, height)
+    :param tile_corner: The top left corner of the tile, in terms of the coordinates of the image, as a tuple (x,y)
+    """
+    for y in xrange(tile_size[1]):
+        for x in xrange(tile_size[0]):
+            img_coords = (x + tile_corner[0], y + tile_corner[1])
+            image[coords_to_index(img_coords, size[0])] = tile[coords_to_index((x, y), tile_size[0])]
+
+
+def sort_image_tiles(image, size, tile_size, tile_density=1, randomize_tiles=False, **sorting_args):
+    out_image = list(image)
+    width, height = size
+    tile_width, tile_height = tile_size
+    for y in xrange(0, height, tile_height):
+        for x in xrange(0, width, tile_width):
+            tile, current_tile_size = get_tile_from_image(image, size, (x, y), tile_size)
+            sorted_tile = sort_pixels(tile, current_tile_size, **sorting_args)
+            apply_tile_to_image(out_image, size, sorted_tile, current_tile_size, (x, y))
+    return out_image
+
+
 def main():
     # set up command line argument parser
     parser = argparse.ArgumentParser(description='A tool for pixel-sorting images')
@@ -112,8 +152,11 @@ def main():
 
     key = PIXEL_KEY_DICT.get(args.sortkey.lower(), None)
     path = PIXEL_PATH_DICT.get(args.path.lower(), None)
-    out_pixels = sort_pixels(original_pixels, img.size, randomize=args.randomize, vertical=args.vertical, path=path,
+
+    out_pixels = sort_image_tiles(original_pixels, img.size, (100, 100), randomize=args.randomize, vertical=args.vertical, path=path,
                              max_interval=args.interval, progressive_amount=args.progressive_amount, discretize=args.discretize, reverse=args.reverse, key=key)
+    # out_pixels = sort_pixels(original_pixels, img.size, randomize=args.randomize, vertical=args.vertical, path=path,
+    #                          max_interval=args.interval, progressive_amount=args.progressive_amount, discretize=args.discretize, reverse=args.reverse, key=key)
 
     # write output image
     img_out = Image.new(img.mode, img.size)
