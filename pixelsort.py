@@ -89,7 +89,7 @@ def main():
     parser.add_argument("-o", "--outfile", required=True, help="The output image")
     parser.add_argument("-d", "--discretize", type=int, default=0,
                         help="Divides float values of pixels by the given integer amount, and casts to an int. "
-                             "Used to bin pixel values into several discrete categories.  ")
+                             "Used to bin pixel values into several discrete categories.")
     parser.add_argument("-i", "--interval", type=int, default=0,
                         help="The size of each sorting interval, in pixels. If 0, whole row is sorted.")
     parser.add_argument("-p", "--path", type=str, default="",
