@@ -95,7 +95,7 @@ def coords_to_index(coords, width):
     return coords[1]*width + coords[0]
 
 
-def sort_pixels(pixels, size, iterator=horizontal_path, max_x=50, max_y=50, max_interval=100, chance=1,  randomize=False, key=None, reverse=False):
+def sort_pixels(pixels, size, iterator=horizontal_path, max_x=50, max_y=50, max_interval=100, chance=1.0,  randomize=False, key=None, reverse=False):
     """
     Given an image as a list of pixels, applies pixel sorting and returns the new pixels
     :param pixels: A list of tuples (R,G,B) representing the pixels of the image
