@@ -45,6 +45,22 @@ def diagonal_path(size):
             xrange(height - 1, -width, -1))
 
 
+def diagonal_single_path(size):
+    """
+    Creates a set of diagonal paths moving from the top left to the bottom right of the image.
+    Successive rows start at the bottom-left corner and move up until the top-right corner.
+    :param size: The dimensions of the image (width, height)
+    :return: A generator that yields a set of paths, each path is a set of (x,y) pixel coordinates.
+    """
+    width, height = size
+
+    def diagonal_path_iter():
+        for offset in xrange(height - 1, -width, -1):
+            for x in range(max(0, -offset), min(width, height - offset)):
+                yield (x, x+offset)
+    yield diagonal_path_iter()
+
+
 def concentric_rectangle_path(size):
     """
     Creates a generator for progressing through an image
@@ -103,6 +119,7 @@ def random_walk_path(size):
 PIXEL_PATH_DICT = {
     'concentric': concentric_rectangle_path,
     'diagonal': diagonal_path,
+    'diagonal-single': diagonal_single_path,
     'horizontal': horizontal_path,
     'random-walk': random_walk_path,
     'vertical': vertical_path,

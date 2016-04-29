@@ -37,7 +37,7 @@ def sort_pixels(pixels, size, vertical=False, path=None, max_interval=100, progr
     width, height = size
 
     if discretize > 0:
-        sort_key = lambda p: int(key(p)/discretize)
+        def sort_key(p): return int(key(p) / discretize)
     else:
         sort_key = key
 
@@ -65,7 +65,7 @@ def sort_pixels(pixels, size, vertical=False, path=None, max_interval=100, progr
                 current_max_interval += max_interval * progressive_amount
 
             if randomize and current_max_interval > 0:
-                interval = randint(1, int(current_max_interval)+1)
+                interval = randint(1, int(current_max_interval) + 1)
             else:
                 interval = current_max_interval
 
@@ -142,6 +142,7 @@ def sort_image_tiles(image, size, sorting_args, tile_size, tile_density=1.0, ran
     out_image = list(image)
     width, height = size
     tile_width, tile_height = tile_size
+
     i = 0
     for y in xrange(0, height, tile_height):
         for x in xrange(0, width, tile_width):
@@ -202,6 +203,7 @@ def main():
     original_pixels = list(img.getdata())
 
     key = PIXEL_KEY_DICT.get(args.sortkey.lower(), None)
+
     path = PIXEL_PATH_DICT.get(args.path.lower(), None)
 
     sorting_args = {
