@@ -36,7 +36,7 @@ def sort_pixels(pixels, size, vertical=False, path=None, max_interval=100, progr
     out_pixels = list(pixels)
     width, height = size
 
-    if discretize > 0:
+    if discretize > 0 and key is not None:
         def sort_key(p): return int(key(p) / discretize)
     else:
         sort_key = key

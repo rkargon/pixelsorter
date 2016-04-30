@@ -6,8 +6,8 @@ Each function produces an iterator of 'rows' over a given image, and each 'row' 
 representing pixels.
 However, the paths produced don't have to be necessarily actual rows or columns.
 """
-
 from random import random
+
 from util import clamp
 
 
@@ -114,7 +114,6 @@ def random_walk_path(size):
     width, height = size
     for y in xrange(height):
         yield random_walk_iter(y)
-
 
 PIXEL_PATH_DICT = {
     'concentric': concentric_rectangle_path,

@@ -1,5 +1,4 @@
 TODO for Pixelsorting
 ---------------------
  - add tests
- - integrate tiling
  - use image contrast / edge detection as boundaries for sorting
