@@ -2,6 +2,7 @@
 """
 Math and other utility functions
 """
+from math import floor
 
 
 def clamp(x, a, b):
@@ -24,3 +25,7 @@ def coords_to_index(coords, width):
     :return: The index of the corresponding pixel
     """
     return coords[1] * width + coords[0]
+
+
+def index_to_coords(index, width):
+    return index % width, floor(index / width)

@@ -4,13 +4,14 @@ from random import randint, random
 
 from PIL import Image
 
+from edge_detection import edge_detect
 from pixelkeys import PIXEL_KEY_DICT
 from pixelpaths import vertical_path, horizontal_path, PIXEL_PATH_DICT
 from util import coords_to_index
 
 
 def sort_pixels(pixels, size, vertical=False, path=None, max_interval=100, progressive_amount=0, randomize=False,
-                key=None, discretize=0, reverse=False):
+                key=None, discretize=0, reverse=False, edge_threshold=0):
     """
     Given an image as a list of pixels, applies pixel sorting and returns the new pixels
     :param discretize: Amount by which to "discretize" pixel values. This is done by dividing each pixel's value
@@ -30,6 +31,8 @@ def sort_pixels(pixels, size, vertical=False, path=None, max_interval=100, progr
     :param key: The function to use for sorting, e.g. brightness or red amount.
                 This function takes a pixel and returns a value to be sorted.
     :param reverse: Whether or not to reverse the direction of the sorting
+    :param edge_threshold: If greater than zero, stops sorting intervals at pixels whose "edge detection" value
+    is greater than the given threshold.
     :return: The pixels of the resulting image as a list of (R,G,B) tuples
     """
 
@@ -56,6 +59,12 @@ def sort_pixels(pixels, size, vertical=False, path=None, max_interval=100, progr
     else:
         current_max_interval = max_interval
 
+    # get edge data if necessary
+    if edge_threshold > 0:
+        edge_data = edge_detect(pixels, size)
+    else:
+        edge_data = None
+
     # for each path
     for path in pixel_iterator:
         path_finished = False
@@ -79,8 +88,14 @@ def sort_pixels(pixels, size, vertical=False, path=None, max_interval=100, progr
                 except StopIteration:
                     path_finished = True
                     break
-                px_indices.append(coords_to_index(coords, width))
+
+                idx = coords_to_index(coords, width)
+                px_indices.append(idx)
                 i += 1
+
+                # do edge detection if necessary
+                if edge_data is not None and edge_data[idx] > edge_threshold:
+                    break
 
             # sort pixels, apply to output image
             sorted_pixels = sorted([pixels[i] for i in px_indices], key=sort_key, reverse=reverse)
@@ -173,6 +188,9 @@ def main():
     parser.add_argument("-d", "--discretize", type=int, default=0,
                         help="Divides float values of pixels by the given integer amount, and casts to an int. "
                              "Used to bin pixel values into several discrete categories.")
+    parser.add_argument("-e", "--edge-threshold", type=float, default=0,
+                        help="Uses edge detection to limit sorting inteverals between pixels "
+                             "who exceed the given contrast threshold.")
     parser.add_argument("-i", "--interval", type=int, default=0,
                         help="The size of each sorting interval, in pixels. If 0, whole row is sorted.")
     parser.add_argument("-p", "--path", type=str, default="",
@@ -215,6 +233,7 @@ def main():
         'discretize': args.discretize,
         'reverse': args.reverse,
         'key': key,
+        'edge_threshold': args.edge_threshold,
     }
 
     tile_args = {
