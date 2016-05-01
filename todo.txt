@@ -1,4 +1,3 @@
 TODO for Pixelsorting
 ---------------------
  - add tests
- - use image contrast / edge detection as boundaries for sorting
