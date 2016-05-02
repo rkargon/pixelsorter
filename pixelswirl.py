@@ -217,9 +217,9 @@ def main():
     img = Image.open(imgfile)
     original_pixels = list(img.getdata())
 
-    out_pixels = sort_pixels(original_pixels, img.size, randomize=False, iterator=tiled_path, max_x=60, max_y=240, max_interval=100000000, chance=0.2, key=(lambda x: sum(x)))
+    out_pixels = sort_pixels(original_pixels, img.size, randomize=False, iterator=tiled_path, max_x=50, max_y=50, max_interval=100000000, chance=0.6, key=(lambda x: sum(x)))
 
-    out_pixels = sort_pixels(out_pixels, img.size, randomize=False, iterator=tiled_path, max_x=240, max_y=60, max_interval=100000000, chance=0.2, key=(lambda x: sum(x)))
+    #out_pixels = sort_pixels(out_pixels, img.size, randomize=False, iterator=tiled_path, max_x=240, max_y=60, max_interval=100000000, chance=0.2, key=(lambda x: sum(x)))
 
     #out_pixels = sort_pixel_tiles(original_pixels, img.size, max_x=200, max_y=200, tile_num=13, randomize=False, key_x=lambda x: x[0] + x[1] + x[2], key_y=lambda y: y[2])
 

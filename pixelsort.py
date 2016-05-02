@@ -95,7 +95,7 @@ def sort_pixels(pixels, size, vertical=False, max_interval=100, randomize=False,
         pixel_iterator = vertical_path(size)
     else:
         pixel_iterator = horizontal_path(size)
-    pixel_iterator = concentric_rectangle_path(size)
+    #pixel_iterator = concentric_rectangle_path(size)
 
     # for each path
     for path in pixel_iterator:
@@ -143,7 +143,7 @@ def main():
     img = Image.open(imgfile)
     original_pixels = list(img.getdata())
 
-    out_pixels = sort_pixels(original_pixels, img.size, randomize=True, vertical=False, max_interval=1000, key=lambda p: sum(p)/10)
+    out_pixels = sort_pixels(original_pixels, img.size, randomize=True, vertical=False, max_interval=200, key=lambda p: sum(p)/10)
 
     # write output image
     img_out = Image.new(img.mode, img.size)
