@@ -109,8 +109,6 @@ def sort_pixels(pixels, size, vertical=False, path=None, max_interval=100, progr
                     break
 
             # sort pixels, apply to output image
-            #print out_pixels
-            #print px_indices
             sorted_pixels = sorted([out_pixels[i] for i in px_indices], key=sort_key, reverse=reverse)
             for i in xrange(len(px_indices)):
                 index = px_indices[i]
@@ -247,6 +245,8 @@ def main():
     # load image
     logging.info("Loading image...")
     img = Image.open(args.infile)
+    if img.mode != "RGB":
+        img = img.convert(mode="RGB")
     original_pixels = list(img.getdata())
 
     key = PIXEL_KEY_DICT.get(args.sortkey.lower(), None)

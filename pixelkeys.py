@@ -37,8 +37,6 @@ def luma(p):
     :param p: A tuple of (R,G,B) values
     :return: The relative luminance of a pixel (in the range [0, 255]).
     """
-    if (type(p) != tuple):
-        return p
     return 0.2126*p[0] + 0.7152*p[1] + 0.0722*p[2]
 
 
@@ -82,6 +80,7 @@ def saturation(p):
     if max_c == 0:
         return 0
     return (max_c - min_c) / float(max_c)
+
 
 def randomval(p):
     """

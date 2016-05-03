@@ -1,3 +1,5 @@
 TODO for Pixelsorting
 ---------------------
+ - better random walks
+ - tools for creating gifs
  - add tests
