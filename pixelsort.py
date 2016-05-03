@@ -1,8 +1,10 @@
 #!/usr/bin/python
 import argparse
+import logging
 from random import randint, random
 
 from PIL import Image
+from math import ceil
 
 from edge_detection import edge_detect
 from pixelkeys import PIXEL_KEY_DICT
@@ -61,12 +63,17 @@ def sort_pixels(pixels, size, vertical=False, path=None, max_interval=100, progr
 
     # get edge data if necessary
     if edge_threshold > 0:
+        logging.info("Getting edge data...")
         edge_data = edge_detect(pixels, size)
     else:
         edge_data = None
 
+    # for logging progress
+    pixels_sorted = 0
+
     # for each path
     for path in pixel_iterator:
+
         path_finished = False
         # traverse path until it is finished
         while not path_finished:
@@ -92,6 +99,10 @@ def sort_pixels(pixels, size, vertical=False, path=None, max_interval=100, progr
                 idx = coords_to_index(coords, width)
                 px_indices.append(idx)
                 i += 1
+                pixels_sorted += 1
+                if pixels_sorted % 200000 == 0:
+                    logging.info("Sorted %d / %d pixels (%2.2f%%)..." % (pixels_sorted, width * height,
+                                                                         100 * pixels_sorted / float(width * height)))
 
                 # do edge detection if necessary
                 if edge_data is not None and edge_data[idx] > edge_threshold:
@@ -161,8 +172,17 @@ def sort_image_tiles(image, size, sorting_args, tile_size, tile_density=1.0, ran
     tile_width, tile_height = tile_size
 
     i = 0
+    total_tiles = ceil(height / float(tile_height)) * ceil(width / float(tile_width))
+    tiles_completed = 0
+    pixels_per_tiles = tile_width * tile_height
     for y in xrange(0, height, tile_height):
         for x in xrange(0, width, tile_width):
+            # logging
+            tiles_completed += 1
+            if tiles_completed % (200000 / pixels_per_tiles) == 0:
+                logging.info("Completed %d / %d tiles... (%2.2f%%)" %
+                             (tiles_completed, total_tiles, 100.0 * tiles_completed / total_tiles))
+
             i += 1
             if randomize_tiles:
                 # if using randomized tiles, skip a tile with probability 1 - density
@@ -179,6 +199,7 @@ def sort_image_tiles(image, size, sorting_args, tile_size, tile_density=1.0, ran
             tile, current_tile_size = get_tile_from_image(image, size, (x, y), tile_size)
             sorted_tile = sort_pixels(tile, current_tile_size, **sorting_args)
             apply_tile_to_image(out_image, size, sorted_tile, current_tile_size, (x, y))
+
     return out_image
 
 
@@ -187,6 +208,7 @@ def main():
     parser = argparse.ArgumentParser(description='A tool for pixel-sorting images')
     parser.add_argument("infile", help="The input image")
     parser.add_argument("-o", "--outfile", required=True, help="The output image")
+    parser.add_argument("--log", action="store_true", default=False, help="Prints out progress and other messages.")
     parser.add_argument("-d", "--discretize", type=int, default=0,
                         help="Divides float values of pixels by the given integer amount, and casts to an int. "
                              "Used to bin pixel values into several discrete categories.")
@@ -218,7 +240,12 @@ def main():
 
     args = parser.parse_args()
 
+    # set up logging
+    if args.log:
+        logging.basicConfig(format='%(levelname)s: %(message)s', level=logging.INFO)
+
     # load image
+    logging.info("Loading image...")
     img = Image.open(args.infile)
     original_pixels = list(img.getdata())
 
@@ -244,16 +271,18 @@ def main():
         'tile_density': args.tile_density,
     }
 
+    logging.info("Sorting image...")
     if args.use_tiles:
         out_pixels = sort_image_tiles(original_pixels, img.size, sorting_args=sorting_args, **tile_args)
     else:
         out_pixels = sort_pixels(original_pixels, img.size, **sorting_args)
 
     # write output image
+    logging.info("Writing output...")
     img_out = Image.new(img.mode, img.size)
     img_out.putdata(out_pixels)
     img_out.save(args.outfile)
-
+    logging.info("Done!")
 
 if __name__ == '__main__':
     main()
