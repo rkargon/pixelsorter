@@ -1,5 +1,5 @@
 #!/usr/bin/python
-
+import random
 """
 This contains different functions applies to pixel values before sorting.
 """
@@ -37,6 +37,8 @@ def luma(p):
     :param p: A tuple of (R,G,B) values
     :return: The relative luminance of a pixel (in the range [0, 255]).
     """
+    if (type(p) != tuple):
+        return p
     return 0.2126*p[0] + 0.7152*p[1] + 0.0722*p[2]
 
 
@@ -81,6 +83,14 @@ def saturation(p):
         return 0
     return (max_c - min_c) / float(max_c)
 
+def randomval(p):
+    """
+    Returns a random float in (0,1)
+    :param p: A tuple of (R,G,B) values
+    :return: A random float, from 0 to 1
+    """
+    return random.random()
+
 PIXEL_KEY_DICT = {
     'blue': blue,
     'brightness': intensity,
@@ -94,4 +104,5 @@ PIXEL_KEY_DICT = {
     'saturation': saturation,
     'sum': sum,
     'value': value,
+    'random': randomval,
 }

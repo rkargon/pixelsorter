@@ -98,7 +98,9 @@ def sort_pixels(pixels, size, vertical=False, path=None, max_interval=100, progr
                     break
 
             # sort pixels, apply to output image
-            sorted_pixels = sorted([pixels[i] for i in px_indices], key=sort_key, reverse=reverse)
+            #print out_pixels
+            #print px_indices
+            sorted_pixels = sorted([out_pixels[i] for i in px_indices], key=sort_key, reverse=reverse)
             for i in xrange(len(px_indices)):
                 index = px_indices[i]
                 pixel = sorted_pixels[i]
