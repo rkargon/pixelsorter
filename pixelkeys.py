@@ -23,9 +23,6 @@ def intensity(p):
     return sum(p)/3.0
 
 
-value = max
-
-
 def lightness(p):
     return (max(p) + min(p))/2.0
 
@@ -102,6 +99,6 @@ PIXEL_KEY_DICT = {
     'red': red,
     'saturation': saturation,
     'sum': sum,
-    'value': value,
+    'value': max,
     'random': randomval,
 }

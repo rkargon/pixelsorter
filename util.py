@@ -3,6 +3,7 @@
 Math and other utility functions
 """
 from math import floor
+from random import random
 
 
 def clamp(x, a, b):
@@ -29,3 +30,13 @@ def coords_to_index(coords, width):
 
 def index_to_coords(index, width):
     return index % width, floor(index / width)
+
+
+def weighted_random_choice(items):
+    l = list(items)
+    r = random() * sum([i[1] for i in l])
+    for x, p in l:
+        if p > r:
+            return x
+        r -= p
+    return None

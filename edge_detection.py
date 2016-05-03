@@ -1,11 +1,15 @@
 #!/usr/bin/python
 import argparse
+import logging
 from math import sqrt
 
 from PIL import Image
 
 from pixelkeys import luma
 from util import coords_to_index
+
+# get logger for current script (even across different modules)
+logger = logging.getLogger(__name__)
 
 
 def edge_detect(image, size):
@@ -19,6 +23,7 @@ def edge_detect(image, size):
     width, height = size
     edge_data = [None] * len(image)
     gray_scale_img = map(luma, image)
+    i = 0
     for y in xrange(1, height-1):
         for x in xrange(1, width-1):
             idx = coords_to_index((x, y), width)
@@ -33,6 +38,10 @@ def edge_detect(image, size):
             g = sqrt(g_x * g_x + g_y * g_y)
             edge_data[idx] = g
 
+            i += 1
+            if i % 20000 == 0:
+                logger.info("Edge detection done for %d / %d pixels... (%2.2f%%)\n" %
+                             (i, width * height, 100 * i / float(width*height)))
     return edge_data
 
 

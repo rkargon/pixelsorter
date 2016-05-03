@@ -12,6 +12,10 @@ from pixelpaths import vertical_path, horizontal_path, PIXEL_PATH_DICT
 from util import coords_to_index
 
 
+# get logger for current script (even across different modules)
+logger = logging.getLogger(__name__)
+
+
 def sort_pixels(pixels, size, vertical=False, path=None, max_interval=100, progressive_amount=0, randomize=False,
                 key=None, discretize=0, reverse=False, edge_threshold=0):
     """
@@ -63,7 +67,7 @@ def sort_pixels(pixels, size, vertical=False, path=None, max_interval=100, progr
 
     # get edge data if necessary
     if edge_threshold > 0:
-        logging.info("Getting edge data...")
+        logger.info("Getting edge data...")
         edge_data = edge_detect(pixels, size)
     else:
         edge_data = None
@@ -101,7 +105,7 @@ def sort_pixels(pixels, size, vertical=False, path=None, max_interval=100, progr
                 i += 1
                 pixels_sorted += 1
                 if pixels_sorted % 200000 == 0:
-                    logging.info("Sorted %d / %d pixels (%2.2f%%)..." % (pixels_sorted, width * height,
+                    logger.info("Sorted %d / %d pixels (%2.2f%%)..." % (pixels_sorted, width * height,
                                                                          100 * pixels_sorted / float(width * height)))
 
                 # do edge detection if necessary
@@ -178,7 +182,7 @@ def sort_image_tiles(image, size, sorting_args, tile_size, tile_density=1.0, ran
             # logging
             tiles_completed += 1
             if tiles_completed % (200000 / pixels_per_tiles) == 0:
-                logging.info("Completed %d / %d tiles... (%2.2f%%)" %
+                logger.info("Completed %d / %d tiles... (%2.2f%%)" %
                              (tiles_completed, total_tiles, 100.0 * tiles_completed / total_tiles))
 
             i += 1
@@ -243,7 +247,7 @@ def main():
         logging.basicConfig(format='%(levelname)s: %(message)s', level=logging.INFO)
 
     # load image
-    logging.info("Loading image...")
+        logger.info("Loading image...")
     img = Image.open(args.infile)
     if img.mode != "RGB":
         img = img.convert(mode="RGB")
@@ -271,18 +275,18 @@ def main():
         'tile_density': args.tile_density,
     }
 
-    logging.info("Sorting image...")
+    logger.info("Sorting image...")
     if args.use_tiles:
         out_pixels = sort_image_tiles(original_pixels, img.size, sorting_args=sorting_args, **tile_args)
     else:
         out_pixels = sort_pixels(original_pixels, img.size, **sorting_args)
 
     # write output image
-    logging.info("Writing output...")
+    logger.info("Writing output...")
     img_out = Image.new(img.mode, img.size)
     img_out.putdata(out_pixels)
     img_out.save(args.outfile)
-    logging.info("Done!")
+    logger.info("Done!")
 
 if __name__ == '__main__':
     main()

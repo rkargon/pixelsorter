@@ -6,9 +6,10 @@ Each function produces an iterator of 'rows' over a given image, and each 'row' 
 representing pixels.
 However, the paths produced don't have to be necessarily actual rows or columns.
 """
+from math import sqrt
 from random import random
 
-from util import clamp
+from util import weighted_random_choice
 
 
 def horizontal_path(size):
@@ -92,28 +93,56 @@ def concentric_rectangle_path(size):
         max_y -= 1
 
 
-def random_walk_path(size):
-    """
-    A generator that yields random walks from the left to the right of an image.
-    :param size: A tuple (width, height) of the image size
-    :return: A generator that returns a set of random walks through the image.
-    Each random walk is an iterator if tuples (x,y) of pixels moving horizontally across the image.
-    """
+def random_walk_path(size, distribution=None, start_points=None):
 
-    def random_walk_iter(y_tmp):
-        for x in xrange(width):
-            yield (x, y_tmp)
-            r = random()
-            p = 0.5
-            if r >= p:
-                y_tmp += 1
-            else:
-                y_tmp -= 1
-            y_tmp = clamp(y_tmp, 0, height - 1)
+    # TODO allow non-adjacent neighbors also?
+
+    def random_walk_iter(start_pt):
+        x, y = start_pt
+        while True:
+            dx, dy = weighted_random_choice(distribution.iteritems())
+            x += dx
+            y += dy
+            if x < 0 or x >= width or y < 0 or y >= height:
+                return
+            yield (x, y)
 
     width, height = size
-    for y in xrange(height):
-        yield random_walk_iter(y)
+    neighbors = [(dx, dy) for dx in [-1, 0, 1] for dy in [-1, 0, 1] if dy != 0 or dx != 0]
+    if distribution is None:
+        distribution = {n: 0.125 for n in neighbors}
+    else:
+        for n in neighbors:
+            if n not in distribution:
+                distribution[n] = 0
+        neighbor_sum = sum(distribution[n] for n in neighbors)
+        if neighbor_sum <= 0:
+            raise ValueError("Distribution must be positive, nonzero for adjacent neighbors")
+        else:
+            distribution = {n: p/float(neighbor_sum) for n, p in distribution.iteritems()}
+    if start_points is None:
+
+        start_points = [(int(0.5 * width), int(0.5 * height)) for _ in xrange(10)]
+
+        # # by default, just start at each pixel on the left edge of the image
+        # start_points = [(0, y) for y in xrange(height)]
+
+    for x0, y0 in start_points:
+        yield random_walk_iter((x0, y0))
+
+
+def horizontal_random_walk(size):
+    _, height = size
+    distribution = {(1, dy): 1/3.0 for dy in [-1, 0, 1]}
+    start_points = [(0, y) for y in xrange(height)]
+    return random_walk_path(size, distribution, start_points)
+
+
+def vertical_random_walk(size):
+    width, _ = size
+    distribution = {(dx, 1): 1/3.0 for dx in [-1, 0, 1]}
+    start_points = [(x, 0) for x in xrange(width)]
+    return random_walk_path(size, distribution, start_points)
 
 PIXEL_PATH_DICT = {
     'concentric': concentric_rectangle_path,
@@ -121,5 +150,7 @@ PIXEL_PATH_DICT = {
     'diagonal-single': diagonal_single_path,
     'horizontal': horizontal_path,
     'random-walk': random_walk_path,
+    'random-walk-horizontal': horizontal_random_walk,
+    'random-walk-vertical': vertical_random_walk,
     'vertical': vertical_path,
 }
