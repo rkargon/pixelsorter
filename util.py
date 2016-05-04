@@ -29,10 +29,21 @@ def coords_to_index(coords, width):
 
 
 def index_to_coords(index, width):
+    """
+    Converts an index in an array of pixels to an x, y coordinate given an image width.
+    :param index: The index in the array
+    :param width: The width of the image
+    :return: (x,y) coordinate of the pixels specified by `index`
+    """
     return index % width, floor(index / width)
 
 
 def weighted_random_choice(items):
+    """
+    Returns a weighted random choice from a list of items.
+    :param items: A list of tuples (object, weight)
+    :return: A random object, whose likelihood is proportional to its weight.
+    """
     l = list(items)
     r = random() * sum([i[1] for i in l])
     for x, p in l:

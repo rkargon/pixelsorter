@@ -19,7 +19,8 @@ One can run ` pip install -r requirements.txt` to download any necessary modules
 ## Usage
 
 To run the script, use the command `python pixelsort.py <image> -o <result>` to sort a given image
-and store it in `<result>`. The other settings and options are described below.
+and store it in `<result>`. Use the `--log` flag to view progress for sorting particularly large images.
+The other settings and options are described below.
 For the example figures, the original image used is this:
 
 ![Original Image][original]
@@ -98,6 +99,7 @@ Other sorting methods include:
  - `intensity`
  - `lightness`
  - `luma`
+ - `random`
  - `saturation`
  - `value`
 
@@ -153,10 +155,21 @@ Otherwise, one can explicitly specify what type of path to use with the `-p` or 
 
 ![Sorting with horizontal path][sort100random]
 
- - `random-walk`: Starting on the left, performs a random walk to the right side of the image,
- randomly moving up or down one pixel at a time
+- `random-walk`: This will sort 10 different paths that start randomly
+in the image and randomly move around until they hit an edge. While this is not customizable in the command line,
+one can pass arbitrary distributions and starting positions to this function in the Python code.
 
 ![Sorting with random walk path][sort100-random-walk]
+
+ - `random-walk-horizontal`: Starting on the left, performs a random walk to the right side of the image,
+ randomly moving up or down one pixel at a time
+
+![Sorting with horizontal random walk path][sort100-random-walk-horizontal]
+
+ - `random-walk-vertical`: Starting on the top, performs a random walk to the bottom side of the image,
+ randomly moving left or right one pixel at a time
+
+![Sorting with vertical random walk path][sort100-random-walk-vertical]
 
  - `vertical`: Sorts vertically, column by column
 
@@ -191,7 +204,39 @@ Sorting without the `-e` flag:
 
 ![Sorting without -e][default]
 
-a
+Note that with low `-e` values, nearly the whole image is undisturbed,
+since almost everything is considered an 'edge',
+but with high `-e` values everything is sorted except for the starkly-contrasted trees.
+
+### Tiles
+
+One can also sort individual tiles in the image. With the `--use-tiles` flag,
+the image will be broken into a grid of recantgular tiles, and each tile will be sorted as if it were a separate image.
+By default, tiles are 50 pixels on a size, but this can be changed with the `--tile-x <INT>` and `--tile-y <INT>` flags
+
+Sorting with `--use-tiles` and `-p diagonal`
+
+![Sorting with tiles with default arguments][sort-tiles-default]
+
+Sorting with `--use-tiles --tile-x 20 --tile-y 30` and `-p diagonal`
+
+![Sorting with custom sized tiles][sort-tiles-custom-size]
+
+The `--tile-density <FLOAT>` flag will only sort the given fraction of tiles. For instance, with `--tile-density 0.5`,
+only half of the tiles will be sorted, while the others are unmodified. By default, all tiles are sorted.
+Also, if the density is less than 1, tiles are sorted uniformly across the image.
+If the `--randomize-tiles` flag is specified, then tiles will be randomly sorted,
+with the probability given by `--tile-density <FLOAT>`.
+
+Sorting with `--use-tiles --tile-x 20 --tile-y 20 --tile-density 0.5` and `-p diagonal-single`
+
+![Sorting with tiles and density 0.5][sort-tiles-half]
+
+Sorting with `--use-tiles --tile-x 20 --tile-y 20 --tile-density 0.5 --randomize-tiles` and `-p diagonal-single`
+
+![Sorting with custom sized tiles][sort-tiles-half-random]
+
+
 
 [//]: # "Figures"
 [original]: docs/figures/original.jpg
@@ -211,7 +256,13 @@ a
 [sort100-diagonal]: docs/figures/sort-100-diagonal.jpg
 [sort-diagonal-single]: docs/figures/sort-diagonal-single.jpg
 [sort100-random-walk]: docs/figures/sort-100-random-walk.jpg
+[sort100-random-walk-horizontal]: docs/figures/sort-100-random-walk-horizontal.jpg
+[sort100-random-walk-vertical]: docs/figures/sort-100-random-walk-vertical.jpg
 [sort100-vertical]: docs/figures/sort-100-vertical.jpg
 [sort-edge-detect-50]: docs/figures/sort-edge-detect-50.jpg
 [sort-edge-detect-100]: docs/figures/sort-edge-detect-100.jpg
 [sort-edge-detect-200]: docs/figures/sort-edge-detect-200.jpg
+[sort-tiles-default]: docs/figures/sort-tiles-default.jpg
+[sort-tiles-custom-size]: docs/figures/sort-tiles-custom-size.jpg
+[sort-tiles-half]: docs/figures/sort-tiles-half.jpg
+[sort-tiles-half-random]: docs/figures/sort-tiles-half-random.jpg

@@ -6,7 +6,6 @@ Each function produces an iterator of 'rows' over a given image, and each 'row' 
 representing pixels.
 However, the paths produced don't have to be necessarily actual rows or columns.
 """
-from math import sqrt
 from random import random
 
 from util import weighted_random_choice
@@ -58,7 +57,8 @@ def diagonal_single_path(size):
     def diagonal_path_iter():
         for offset in xrange(height - 1, -width, -1):
             for x in range(max(0, -offset), min(width, height - offset)):
-                yield (x, x+offset)
+                yield (x, x + offset)
+
     yield diagonal_path_iter()
 
 
@@ -94,6 +94,17 @@ def concentric_rectangle_path(size):
 
 
 def random_walk_path(size, distribution=None, start_points=None):
+    """
+    Performs random walks as a markov chain with an arbitrary distribution and start points
+    :param size: The size of the image as (width, height)
+    :param distribution: A hash of {(dx, dy): probability} the distribution
+    that describes how the random walk moves to neighboring states. This does not need to be normalized to sum to 1.
+    Both dx and dy should be one of [-1, 0, 1].
+     By default, this is a uniform distribution over all adjacent states.
+    :param start_points: A set of starting points for each random walk.
+    By default, these are 10 random points in the image.
+    :return: An iterator of paths, with each path being an iterator of (x,y) pixels
+    """
 
     # TODO allow non-adjacent neighbors also?
 
@@ -119,10 +130,9 @@ def random_walk_path(size, distribution=None, start_points=None):
         if neighbor_sum <= 0:
             raise ValueError("Distribution must be positive, nonzero for adjacent neighbors")
         else:
-            distribution = {n: p/float(neighbor_sum) for n, p in distribution.iteritems()}
+            distribution = {n: p / float(neighbor_sum) for n, p in distribution.iteritems()}
     if start_points is None:
-
-        start_points = [(int(0.5 * width), int(0.5 * height)) for _ in xrange(10)]
+        start_points = [(int(random() * width), int(random() * height)) for _ in xrange(10)]
 
         # # by default, just start at each pixel on the left edge of the image
         # start_points = [(0, y) for y in xrange(height)]
@@ -132,17 +142,28 @@ def random_walk_path(size, distribution=None, start_points=None):
 
 
 def horizontal_random_walk(size):
+    """
+    Generates random walks that start at the left side of the image and move towards the right
+    :param size: The size of the image
+    :return: An iterator of paths, each an iterator of (x,y) coordinates
+    """
     _, height = size
-    distribution = {(1, dy): 1/3.0 for dy in [-1, 0, 1]}
+    distribution = {(1, dy): 1 / 3.0 for dy in [-1, 0, 1]}
     start_points = [(0, y) for y in xrange(height)]
     return random_walk_path(size, distribution, start_points)
 
 
 def vertical_random_walk(size):
+    """
+    Generates random walks that start at the left side of the image and move towards the right
+    :param size: The size of the image
+    :return: An iterator of paths, each an iterator of (x,y) coordinates
+    """
     width, _ = size
-    distribution = {(dx, 1): 1/3.0 for dx in [-1, 0, 1]}
+    distribution = {(dx, 1): 1 / 3.0 for dx in [-1, 0, 1]}
     start_points = [(x, 0) for x in xrange(width)]
     return random_walk_path(size, distribution, start_points)
+
 
 PIXEL_PATH_DICT = {
     'concentric': concentric_rectangle_path,

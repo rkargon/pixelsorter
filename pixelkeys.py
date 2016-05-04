@@ -96,9 +96,9 @@ PIXEL_KEY_DICT = {
     'intensity': intensity,
     'lightness': lightness,
     'luma': luma,
+    'random': randomval,
     'red': red,
     'saturation': saturation,
     'sum': sum,
     'value': max,
-    'random': randomval,
 }
