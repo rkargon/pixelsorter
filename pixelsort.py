@@ -16,7 +16,7 @@ logger = logging.getLogger(__name__)
 
 
 def sort_image(image, size, vertical=False, path=None, max_interval=100, progressive_amount=0, randomize=False,
-               edge_threshold=0, image_threshold=None, key=None, discretize=0, reverse=False):
+               edge_threshold=0, image_threshold=None, image_mask=None, key=None, discretize=0, reverse=False):
     """
     Applies pixel sorting to an image. This is done by first creating a sort mask that describes the sorting intervals,
     and then calling apply_sort_mask to the image using the generated mask.
@@ -45,12 +45,12 @@ def sort_image(image, size, vertical=False, path=None, max_interval=100, progres
     :return: The pixels of the resulting image as a list of (R,G,B) tuples
     """
     mask = create_sort_mask(image, size, vertical, path, max_interval, progressive_amount, randomize,
-                            edge_threshold, image_threshold)
+                            edge_threshold, image_threshold, image_mask)
     return apply_sort_mask(image, size, mask, vertical, path, key, discretize, reverse)
 
 
 def create_sort_mask(image, size, vertical=False, path=None, max_interval=100, progressive_amount=0, randomize=False,
-                     edge_threshold=0, image_threshold=None):
+                     edge_threshold=0, image_threshold=None, image_mask=None):
     """
     Creates a sort mask for an image according to the given parameters. This is a 2d list of values {0, 1} corresponding
     to each pixel in the given image. The 1s represent the ends of sort intervals.
@@ -70,7 +70,28 @@ def create_sort_mask(image, size, vertical=False, path=None, max_interval=100, p
     :return: A 2d list of values {0,1}
     """
     width, height = size
-    pixel_mask = [0] * len(image)
+    pixel_mask = [0] * (width * height)
+
+    # get edge data if necessary
+    if edge_threshold > 0:
+        edge_data = edge_detect(image, size)
+    else:
+        edge_data = None
+    image_threshold = clamp(image_threshold, 0.0, 1.0)
+
+    # use various image data to set up sort intervals, before computing random intervals
+    for i in xrange(len(pixel_mask)):
+        if image_mask is not None and luma(image_mask[i]) > 128:
+            pixel_mask[i] = 1
+        # edge detection
+        if edge_data is not None and edge_data[i] > edge_threshold:
+            pixel_mask[i] = 1
+        # use image color to determine ends of sorting intervals
+        if image_threshold is not None:
+            brightness = luma(image[i])
+            t = image_threshold * 255 / 2
+            if brightness < t or brightness > 255 - t:
+                pixel_mask[i] = 1
 
     # select path to go through image
     if path is None:
@@ -87,14 +108,7 @@ def create_sort_mask(image, size, vertical=False, path=None, max_interval=100, p
     else:
         current_max_interval = max_interval
 
-    # get edge data if necessary
-    if edge_threshold > 0:
-        edge_data = edge_detect(image, size)
-    else:
-        edge_data = None
-    image_threshold = clamp(image_threshold, 0.0, 1.0)
-
-    # for each path
+    # traverse image and compute random sort intervals
     pixels_sorted = 0
     for path in pixel_iterator:
 
@@ -120,24 +134,16 @@ def create_sort_mask(image, size, vertical=False, path=None, max_interval=100, p
                     path_finished = True
                     break
 
+                i += 1
                 pixels_sorted += 1
                 if pixels_sorted % 200000 == 0:
                     logger.info("Created sort mask for %d / %d pixels (%2.2f%%)..." %
                                 (pixels_sorted, width * height, 100 * pixels_sorted / float(width * height)))
 
                 idx = coords_to_index(coords, width)
-                i += 1
-
                 # do edge detection if necessary
-                if edge_data is not None and edge_data[idx] > edge_threshold:
+                if pixel_mask[idx] > 0:
                     break
-
-                # use image color to determine ends of sorting intervals
-                if image_threshold is not None and luma(image[idx]) > image_threshold:
-                    brightness = luma(image[idx])
-                    t = image_threshold * 255 / 2
-                    if brightness < t or brightness > 255 - t:
-                        break
 
             # sort pixels, apply to output image
             if coords is not None:
@@ -146,8 +152,23 @@ def create_sort_mask(image, size, vertical=False, path=None, max_interval=100, p
     return pixel_mask
 
 
-def apply_sort_mask(pixels, size, sort_mask, vertical=False, path=None, key=None, discretize=0, reverse=False):
-    out_pixels = list(pixels)
+def apply_sort_mask(image, size, sort_mask, vertical=False, path=None, key=None, discretize=0, reverse=False):
+    """
+    Applies a sort mask to an image. The sort mask is a list of values {0, 1} that correspond to pixels in the image.
+    Then, the 1's are used to separate sort intervals which are each sorted individually.
+
+    (NOTE: These parameters are explained in more detail in `sort_image(...)` )
+    :param image: The image to sort
+    :param size: The size of the image
+    :param sort_mask: The sort mask to use, a list of {0, 1} values
+    :param vertical: Whether to sort vertically
+    :param path: The sort path to use
+    :param key: Which function to order pixels by (e.g. brightness, saturation)
+    :param discretize: Whether to group key values into bins
+    :param reverse: Whether to reverse sort order.
+    :return: A sorted image.
+    """
+    out_pixels = list(image)
     width, height = size
 
     if discretize > 0 and key is not None:
@@ -273,7 +294,10 @@ def sort_image_tiles(image, size, sorting_args, tile_size, tile_density=1.0, ran
 
 
 def get_cli_args():
-    # set up command line argument parser
+    """
+    Parses command line arguments. 
+    :return: An object whose fields are the command line arguments.
+    """
     parser = argparse.ArgumentParser(description='A tool for pixel-sorting images')
     parser.add_argument("infile", help="The input image")
     parser.add_argument("-o", "--outfile", required=True, help="The output image")
@@ -282,9 +306,10 @@ def get_cli_args():
                         help="Divides float values of pixels by the given integer amount, and casts to an int. "
                              "Used to bin pixel values into several discrete categories.")
     parser.add_argument("-e", "--edge-threshold", type=float, default=0,
-                        help="Uses edge detection to limit sorting inteverals between pixels "
+                        help="Uses edge detection to limit sorting intevals between pixels "
                              "who exceed the given contrast threshold.")
     parser.add_argument("--image-threshold", type=float, default=None)
+    parser.add_argument("--image-mask", type=str, default=None, help="Use a custom image for generating the mask")
     parser.add_argument("-i", "--interval", type=int, default=0,
                         help="The size of each sorting interval, in pixels. If 0, whole row is sorted.")
     parser.add_argument("-p", "--path", type=str, default="",
@@ -325,13 +350,23 @@ def main():
         img = img.convert(mode="RGB")
     original_pixels = list(img.getdata())
 
+    # set up more complicated parameters
+    image_mask = None
+    if args.image_mask is not None:
+        mask_img = Image.open(args.image_mask)
+        if mask_img.size != img.size:
+            print "Error: Image mask is not the same size as input image."
+            exit()
+        image_mask = list(mask_img.getdata())
     key = PIXEL_KEY_DICT.get(args.sortkey.lower(), None)
     path = PIXEL_PATH_DICT.get(args.path.lower(), None)
+
     sorting_args = {
         'discretize': args.discretize,
         'edge_threshold': args.edge_threshold,
         'key': key,
         'image_threshold': args.image_threshold,
+        'image_mask': image_mask,
         'max_interval': args.interval,
         'path': path,
         'progressive_amount': args.progressive_amount,
