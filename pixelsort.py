@@ -1,25 +1,25 @@
 #!/usr/bin/python
 import argparse
 import logging
+from math import ceil
 from random import randint, random
 
 from PIL import Image
-from math import ceil
 
 from edge_detection import edge_detect
-from pixelkeys import PIXEL_KEY_DICT
+from pixelkeys import PIXEL_KEY_DICT, luma
 from pixelpaths import vertical_path, horizontal_path, PIXEL_PATH_DICT
-from util import coords_to_index
-
+from util import coords_to_index, clamp
 
 # get logger for current script (even across different modules)
 logger = logging.getLogger(__name__)
 
 
-def sort_pixels(pixels, size, vertical=False, path=None, max_interval=100, progressive_amount=0, randomize=False,
-                key=None, discretize=0, reverse=False, edge_threshold=0):
+def sort_image(image, size, vertical=False, path=None, max_interval=100, progressive_amount=0, randomize=False,
+               edge_threshold=0, image_threshold=None, key=None, discretize=0, reverse=False):
     """
-    Given an image as a list of pixels, applies pixel sorting and returns the new pixels
+    Applies pixel sorting to an image. This is done by first creating a sort mask that describes the sorting intervals,
+    and then calling apply_sort_mask to the image using the generated mask.
     :param discretize: Amount by which to "discretize" pixel values. This is done by dividing each pixel's value
     (after applying the sort key) by the given amount and then converting to an integer.
     This would mean that pixels are "binned" into discrete categories, and sorting would be different.
@@ -29,7 +29,7 @@ def sort_pixels(pixels, size, vertical=False, path=None, max_interval=100, progr
     then the sorting interval increases as one progresses row-by-row through the image.
     progressive_amount indicates the amount, in pixels, by which to increase the sorting interval after each row.
     :param path: The specific path used to iterate through the image.
-    :param pixels: A list of tuples (R,G,B) representing the pixels of the image
+    :param image: A list of tuples (R,G,B) representing the pixels of the image
     :param size: The size of the image as a tuple (width, height)
     :param vertical: Whether or not the color sorting is applied vertically (the default is horizontal)
     :param max_interval: The largest interval of adjacent pixels to sort
@@ -39,16 +39,38 @@ def sort_pixels(pixels, size, vertical=False, path=None, max_interval=100, progr
     :param reverse: Whether or not to reverse the direction of the sorting
     :param edge_threshold: If greater than zero, stops sorting intervals at pixels whose "edge detection" value
     is greater than the given threshold.
+    :param image_threshold: If not None, uses pixel's brightness to determine sort intervals.
+    Pixels that are outside the range [threshold, MAX - threshold] are not sorted. So a value of 0 will sort all pixels
+    (depending on the value of other arguments, of course), while a value of 1 will not sorty any pixels.
     :return: The pixels of the resulting image as a list of (R,G,B) tuples
     """
+    mask = create_sort_mask(image, size, vertical, path, max_interval, progressive_amount, randomize,
+                            edge_threshold, image_threshold)
+    return apply_sort_mask(image, size, mask, vertical, path, key, discretize, reverse)
 
-    out_pixels = list(pixels)
+
+def create_sort_mask(image, size, vertical=False, path=None, max_interval=100, progressive_amount=0, randomize=False,
+                     edge_threshold=0, image_threshold=None):
+    """
+    Creates a sort mask for an image according to the given parameters. This is a 2d list of values {0, 1} corresponding
+    to each pixel in the given image. The 1s represent the ends of sort intervals.
+    The output of this function can be passed to `apply_sort_mask` to sort an image.
+
+    (NOTE: These parameters are described in the function sort_image)
+    :param image: The image to create a mask from
+    :param size: The size of the image
+    :param vertical: Whether to use a vertical path
+    :param path: The path to use
+    :param max_interval: The maximum sort interval
+    :param progressive_amount: The rate at which the sort interval should increase
+    :param randomize: Whether to randomize interval length
+    :param edge_threshold: Threshold for creating sort intervals based on edge detection
+    :param image_threshold: Threshold for creating sort intervals based on image color
+
+    :return: A 2d list of values {0,1}
+    """
     width, height = size
-
-    if discretize > 0 and key is not None:
-        def sort_key(p): return int(key(p) / discretize)
-    else:
-        sort_key = key
+    pixel_mask = [0] * len(image)
 
     # select path to go through image
     if path is None:
@@ -67,15 +89,13 @@ def sort_pixels(pixels, size, vertical=False, path=None, max_interval=100, progr
 
     # get edge data if necessary
     if edge_threshold > 0:
-        logger.info("Getting edge data...")
-        edge_data = edge_detect(pixels, size)
+        edge_data = edge_detect(image, size)
     else:
         edge_data = None
-
-    # for logging progress
-    pixels_sorted = 0
+    image_threshold = clamp(image_threshold, 0.0, 1.0)
 
     # for each path
+    pixels_sorted = 0
     for path in pixel_iterator:
 
         path_finished = False
@@ -90,8 +110,8 @@ def sort_pixels(pixels, size, vertical=False, path=None, max_interval=100, progr
                 interval = current_max_interval
 
             # get pixel coordinates of path
-            px_indices = []
             i = 0
+            coords = None
             # if interval is 0, just sort whole line at once
             while i < interval or interval == 0:
                 try:
@@ -100,24 +120,71 @@ def sort_pixels(pixels, size, vertical=False, path=None, max_interval=100, progr
                     path_finished = True
                     break
 
-                idx = coords_to_index(coords, width)
-                px_indices.append(idx)
-                i += 1
                 pixels_sorted += 1
                 if pixels_sorted % 200000 == 0:
-                    logger.info("Sorted %d / %d pixels (%2.2f%%)..." % (pixels_sorted, width * height,
-                                                                         100 * pixels_sorted / float(width * height)))
+                    logger.info("Created sort mask for %d / %d pixels (%2.2f%%)..." %
+                                (pixels_sorted, width * height, 100 * pixels_sorted / float(width * height)))
+
+                idx = coords_to_index(coords, width)
+                i += 1
 
                 # do edge detection if necessary
                 if edge_data is not None and edge_data[idx] > edge_threshold:
                     break
 
+                # use image color to determine ends of sorting intervals
+                if image_threshold is not None and luma(image[idx]) > image_threshold:
+                    brightness = luma(image[idx])
+                    t = image_threshold * 255 / 2
+                    if brightness < t or brightness > 255 - t:
+                        break
+
             # sort pixels, apply to output image
-            sorted_pixels = sorted([out_pixels[i] for i in px_indices], key=sort_key, reverse=reverse)
-            for i in xrange(len(px_indices)):
-                index = px_indices[i]
-                pixel = sorted_pixels[i]
-                out_pixels[index] = pixel
+            if coords is not None:
+                idx = coords_to_index(coords, width)
+                pixel_mask[idx] = 1
+    return pixel_mask
+
+
+def apply_sort_mask(pixels, size, sort_mask, vertical=False, path=None, key=None, discretize=0, reverse=False):
+    out_pixels = list(pixels)
+    width, height = size
+
+    if discretize > 0 and key is not None:
+        def sort_key(p): return int(key(p) / discretize)
+    else:
+        sort_key = key
+
+    # select path to go through image
+    if path is None:
+        if vertical:
+            pixel_iterator = vertical_path(size)
+        else:
+            pixel_iterator = horizontal_path(size)
+    else:
+        pixel_iterator = path(size)
+
+    # for logging progress
+    pixels_sorted = 0
+
+    # for each path
+    for path in pixel_iterator:
+        px_indices = []
+        for coords in path:
+            idx = coords_to_index(coords, width)
+            px_indices.append(idx)
+            if sort_mask[idx] == 1 or random() < sort_mask[idx]:
+                sorted_pixels = sorted([out_pixels[i] for i in px_indices], key=sort_key, reverse=reverse)
+                for i in xrange(len(px_indices)):
+                    index = px_indices[i]
+                    pixel = sorted_pixels[i]
+                    out_pixels[index] = pixel
+                px_indices = []
+
+            pixels_sorted += 1
+            if pixels_sorted % 200000 == 0:
+                logger.info("Sorted %d / %d pixels (%2.2f%%)..." % (pixels_sorted, width * height,
+                                                                    100 * pixels_sorted / float(width * height)))
     return out_pixels
 
 
@@ -183,7 +250,7 @@ def sort_image_tiles(image, size, sorting_args, tile_size, tile_density=1.0, ran
             tiles_completed += 1
             if tiles_completed % (200000 / pixels_per_tiles) == 0:
                 logger.info("Completed %d / %d tiles... (%2.2f%%)" %
-                             (tiles_completed, total_tiles, 100.0 * tiles_completed / total_tiles))
+                            (tiles_completed, total_tiles, 100.0 * tiles_completed / total_tiles))
 
             i += 1
             if randomize_tiles:
@@ -199,13 +266,13 @@ def sort_image_tiles(image, size, sorting_args, tile_size, tile_density=1.0, ran
                     i -= 1.0 / tile_density
             # extract a tile, sort it, and copy it back to the image
             tile, current_tile_size = get_tile_from_image(image, size, (x, y), tile_size)
-            sorted_tile = sort_pixels(tile, current_tile_size, **sorting_args)
+            sorted_tile = sort_image(tile, current_tile_size, **sorting_args)
             apply_tile_to_image(out_image, size, sorted_tile, current_tile_size, (x, y))
 
     return out_image
 
 
-def main():
+def get_cli_args():
     # set up command line argument parser
     parser = argparse.ArgumentParser(description='A tool for pixel-sorting images')
     parser.add_argument("infile", help="The input image")
@@ -217,6 +284,7 @@ def main():
     parser.add_argument("-e", "--edge-threshold", type=float, default=0,
                         help="Uses edge detection to limit sorting inteverals between pixels "
                              "who exceed the given contrast threshold.")
+    parser.add_argument("--image-threshold", type=float, default=None)
     parser.add_argument("-i", "--interval", type=int, default=0,
                         help="The size of each sorting interval, in pixels. If 0, whole row is sorted.")
     parser.add_argument("-p", "--path", type=str, default="",
@@ -239,8 +307,12 @@ def main():
                         help="Whether to distribute tiles randomly")
     parser.add_argument("--tile-density", type=float, default=1.0,
                         help="Approximately what fraction of the image is covered in tiles")
-
     args = parser.parse_args()
+    return args
+
+
+def main():
+    args = get_cli_args()
 
     # set up logging
     if args.log:
@@ -254,32 +326,30 @@ def main():
     original_pixels = list(img.getdata())
 
     key = PIXEL_KEY_DICT.get(args.sortkey.lower(), None)
-
     path = PIXEL_PATH_DICT.get(args.path.lower(), None)
-
     sorting_args = {
-        'randomize': args.randomize,
-        'vertical': args.vertical,
-        'path': path,
-        'max_interval': args.interval,
-        'progressive_amount': args.progressive_amount,
         'discretize': args.discretize,
-        'reverse': args.reverse,
-        'key': key,
         'edge_threshold': args.edge_threshold,
+        'key': key,
+        'image_threshold': args.image_threshold,
+        'max_interval': args.interval,
+        'path': path,
+        'progressive_amount': args.progressive_amount,
+        'randomize': args.randomize,
+        'reverse': args.reverse,
+        'vertical': args.vertical,
     }
-
     tile_args = {
         'tile_size': (args.tile_x, args.tile_y),
         'randomize_tiles': args.randomize_tiles,
         'tile_density': args.tile_density,
     }
 
-    logger.info("Sorting image...")
+    logger.info("Sorting image....")
     if args.use_tiles:
         out_pixels = sort_image_tiles(original_pixels, img.size, sorting_args=sorting_args, **tile_args)
     else:
-        out_pixels = sort_pixels(original_pixels, img.size, **sorting_args)
+        out_pixels = sort_image(original_pixels, img.size, **sorting_args)
 
     # write output image
     logger.info("Writing output...")
