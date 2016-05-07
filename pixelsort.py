@@ -293,6 +293,22 @@ def sort_image_tiles(image, size, sorting_args, tile_size, tile_density=1.0, ran
     return out_image
 
 
+def splice_channel(original, sorted_img, channel):
+    if len(original) != len(sorted_img):
+        raise ValueError("Input images are not the same size.")
+    channels = ["red", "green", "blue"]
+    if channel not in channels:
+        raise ValueError("Invalid channel")
+    channel_idx = channels.index(channel)
+
+    out_pixels = list(original)
+    for i in xrange(len(out_pixels)):
+        p = list(out_pixels[i])
+        p[channel_idx] = sorted_img[i][channel_idx]
+        out_pixels[i] = tuple(p)
+    return out_pixels
+
+
 def get_cli_args():
     """
     Parses command line arguments. 
@@ -302,6 +318,8 @@ def get_cli_args():
     parser.add_argument("infile", help="The input image")
     parser.add_argument("-o", "--outfile", required=True, help="The output image")
     parser.add_argument("--log", action="store_true", default=False, help="Prints out progress and other messages.")
+    parser.add_argument("--channel", type=str, default=None, choices=["red", "green", "blue"],
+                        help="Sort only one of the channels of this image.")
     parser.add_argument("-d", "--discretize", type=int, default=0,
                         help="Divides float values of pixels by the given integer amount, and casts to an int. "
                              "Used to bin pixel values into several discrete categories.")
@@ -385,6 +403,9 @@ def main():
         out_pixels = sort_image_tiles(original_pixels, img.size, sorting_args=sorting_args, **tile_args)
     else:
         out_pixels = sort_image(original_pixels, img.size, **sorting_args)
+
+    if args.channel is not None:
+        out_pixels = splice_channel(original_pixels, out_pixels, args.channel)
 
     # write output image
     logger.info("Writing output...")
