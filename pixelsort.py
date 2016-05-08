@@ -5,6 +5,7 @@ from math import ceil
 from random import randint, random
 
 from PIL import Image
+from images2gif import images2gif
 
 from edge_detection import edge_detect
 from pixelkeys import PIXEL_KEY_DICT, luma
@@ -15,7 +16,7 @@ from util import coords_to_index, clamp
 logger = logging.getLogger(__name__)
 
 
-def sort_image(image, size, vertical=False, path=None, max_interval=100, progressive_amount=0, randomize=False,
+def sort_image(image, size, vertical=False, path=None, max_interval=0, progressive_amount=0, randomize=False,
                edge_threshold=0, image_threshold=None, image_mask=None, key=None, discretize=0, reverse=False):
     """
     Applies pixel sorting to an image. This is done by first creating a sort mask that describes the sorting intervals,
@@ -406,6 +407,16 @@ def main():
 
     if args.channel is not None:
         out_pixels = splice_channel(original_pixels, out_pixels, args.channel)
+
+    # gif test
+    gif_frames = []
+    for d in xrange(200, 0, -1):
+        print "sorting d = %f..." % d
+        out_pixels = sort_image(image=original_pixels, size=img.size, key=sum, vertical=True, image_threshold=d/200.0)
+        img_out = Image.new(img.mode, img.size)
+        img_out.putdata(out_pixels)
+        gif_frames.append(img_out)
+    images2gif.writeGif("yolo2.gif", gif_frames, subRectangles=False)
 
     # write output image
     logger.info("Writing output...")
