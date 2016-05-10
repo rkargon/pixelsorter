@@ -1,4 +1,4 @@
-#!/usr/bin/python
+#!/usr/bin/env python3
 import argparse
 import logging
 import os
@@ -315,7 +315,7 @@ def splice_channel(original, sorted_img, channel):
     return out_pixels
 
 
-def sort_image_with_cli_args(image, outfile, sorting_args, tile_args=None, channel=None, pixels=None):
+def sort_image_with_cli_args(image, outfile, sorting_args, tile_args=None, channel=None, pixels=None, save=None):
     """
     Sorts an image with the given command line parameters, and outputs the result to the given file.
     :param outfile: The name of the file to write to
@@ -341,7 +341,8 @@ def sort_image_with_cli_args(image, outfile, sorting_args, tile_args=None, chann
     # write output image
     img_out = Image.new(image.mode, image.size)
     img_out.putdata(out_pixels)
-    img_out.save(outfile)
+    if save:
+        img_out.save(outfile)
     logger.info("Wrote image to %s." % outfile)
 
     return img_out
@@ -354,7 +355,7 @@ def str_to_animate_params(s):
 
 def get_cli_args():
     """
-    Parses command line arguments. 
+    Parses command line arguments.
     :return: An object whose fields are the command line arguments.
     """
     parser = argparse.ArgumentParser(description='A tool for pixel-sorting images')
@@ -397,6 +398,7 @@ def get_cli_args():
     parser.add_argument("--animate", type=str_to_animate_params, default=None,
                         help="Animate a certain parameter. "
                              "This argument is a string '<param> <start> <stop> <n_steps>'")
+    parser.add_argument("--save-frames", action='store_true', default=False)
     args = parser.parse_args()
     return args
 
@@ -450,7 +452,7 @@ def main():
     if args.animate is None:
         logger.info("Sorting image....")
         sort_image_with_cli_args(image=img, outfile=args.outfile, sorting_args=sorting_args, tile_args=tile_args,
-                                 channel=args.channel, pixels=None)
+                                 channel=args.channel, pixels=None, save=True)
 
     else:
         # cache data that will be used multiple times
@@ -463,18 +465,20 @@ def main():
 
         gif_frames = []
         # create directory to hold temporary frames
-        dir_path = args.outfile+"_frames"
-        if not os.path.exists(dir_path):
-            os.makedirs(dir_path)
+        dir_path = ""
+        if args.save_frames:
+            dir_path = args.outfile+"_frames/"
+            if not os.path.exists(dir_path):
+                os.makedirs(dir_path)
 
         i = 1
         while abs(sorting_args[param] - start) <= abs(stop - start):
             # sort image according to new parameters
             print("sorting %s = %f..." % (param, sorting_args[param]))
-            frame_name = "%s/%s_frame_%d.png" % (dir_path, args.outfile, i)
+            frame_name = "%s%s_frame_%d.png" % (dir_path, args.outfile, i)
             # sort current frame and save it to disk
             out_pixels = sort_image_with_cli_args(img, frame_name, sorting_args, tile_args, channel=args.channel,
-                                                  pixels=original_pixels)
+                                                  pixels=original_pixels, save=args.save_frames)
             gif_frames.append(out_pixels)
             sorting_args[param] += delta
             i += 1
