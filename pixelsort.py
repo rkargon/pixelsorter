@@ -398,7 +398,8 @@ def get_cli_args():
     parser.add_argument("--animate", type=str_to_animate_params, default=None,
                         help="Animate a certain parameter. "
                              "This argument is a string '<param> <start> <stop> <n_steps>'")
-    parser.add_argument("--save-frames", action='store_true', default=False)
+    parser.add_argument("--save-frames", action='store_true', default=False,
+                        help="Whether to save animation frames as individual pictures")
     args = parser.parse_args()
     return args
 
