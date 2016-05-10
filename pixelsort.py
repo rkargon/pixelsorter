@@ -314,6 +314,38 @@ def splice_channel(original, sorted_img, channel):
     return out_pixels
 
 
+def sort_image_with_cli_args(image, outfile, sorting_args, tile_args=None, channel=None, pixels=None):
+    """
+    Sorts an image with the given command line parameters, and outputs the result to the given file.
+    :param outfile: The name of the file to write to
+    :param image: The image to sort, as a PIL.Image object
+    :param sorting_args: Arguments for sorting
+    :param tile_args: Arguments for tiles
+    :param channel: The specific channel (if None, sorts all channels) to sort
+    :param pixels: The pixel data of the image, as a list of (R,G,B) tuples.
+    By default this is None, but this can be specified so one does not need to re-load the image data every time.
+    (For instance, if this is called repeatedly while creating an animation)
+    :return: The resulting image object
+    """
+    if pixels is None:
+        pixels = list(image.getdata())
+    if tile_args is not None:
+        out_pixels = sort_image_tiles(pixels, image.size, sorting_args=sorting_args, **tile_args)
+    else:
+        out_pixels = sort_image(pixels, image.size, **sorting_args)
+
+    if channel is not None:
+        out_pixels = splice_channel(pixels, out_pixels, channel)
+
+    # write output image
+    img_out = Image.new(image.mode, image.size)
+    img_out.putdata(out_pixels)
+    img_out.save(outfile)
+    logger.info("Wrote image to %s." % outfile)
+
+    return img_out
+
+
 def str_to_animate_params(s):
     param, start, stop, n_steps = s.split(" ")
     return param, float(start), float(stop), float(n_steps)
@@ -380,7 +412,6 @@ def main():
     img = Image.open(args.infile)
     if img.mode != "RGB":
         img = img.convert(mode="RGB")
-    original_pixels = list(img.getdata())
 
     # set up more complicated parameters
     image_mask = None
@@ -406,30 +437,24 @@ def main():
         'reverse': args.reverse,
         'vertical': args.vertical,
     }
-    tile_args = {
-        'tile_size': (args.tile_x, args.tile_y),
-        'randomize_tiles': args.randomize_tiles,
-        'tile_density': args.tile_density,
-    }
+    if args.use_tiles:
+        tile_args = {
+            'tile_size': (args.tile_x, args.tile_y),
+            'randomize_tiles': args.randomize_tiles,
+            'tile_density': args.tile_density,
+        }
+    else:
+        tile_args = None
 
     if args.animate is None:
         logger.info("Sorting image....")
-        if args.use_tiles:
-            out_pixels = sort_image_tiles(original_pixels, img.size, sorting_args=sorting_args, **tile_args)
-        else:
-            out_pixels = sort_image(original_pixels, img.size, **sorting_args)
-
-        if args.channel is not None:
-            out_pixels = splice_channel(original_pixels, out_pixels, args.channel)
-
-        # write output image
-        logger.info("Writing output...")
-        img_out = Image.new(img.mode, img.size)
-        img_out.putdata(out_pixels)
-        img_out.save(args.outfile)
-        logger.info("Done!")
+        sort_image_with_cli_args(image=img, outfile=args.outfile, sorting_args=sorting_args, tile_args=tile_args,
+                                 channel=args.channel, pixels=None)
 
     else:
+        # cache data that will be used multiple times
+        original_pixels = list(img.getdata())
+
         # set up animation params
         param, start, stop, n_steps = args.animate
         delta = (stop - start)/float(n_steps - 1)
@@ -445,15 +470,11 @@ def main():
         while abs(sorting_args[param] - start) <= abs(stop - start):
             # sort image according to new parameters
             print "sorting %s = %f..." % (param, sorting_args[param])
-            out_pixels = sort_image(image=original_pixels, size=img.size, **sorting_args)
-            img_out = Image.new(img.mode, img.size)
-            img_out.putdata(out_pixels)
-
-            # save current frame to disk, as well as store in memory
             frame_name = "%s/%s_frame_%d.png" % (dir_path, args.outfile, i)
-            img_out.save(frame_name)
-            gif_frames.append(img_out)
-
+            # sort current frame and save it to disk
+            out_pixels = sort_image_with_cli_args(img, frame_name, sorting_args, tile_args, channel=args.channel,
+                                                  pixels=original_pixels)
+            gif_frames.append(out_pixels)
             sorting_args[param] += delta
             i += 1
         images2gif.writeGif(args.outfile+".gif", gif_frames, subRectangles=False)
