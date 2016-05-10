@@ -350,7 +350,7 @@ def sort_image_with_cli_args(image, outfile, sorting_args, tile_args=None, chann
 
 def str_to_animate_params(s):
     param, start, stop, n_steps = s.split(" ")
-    return param, float(start), float(stop), float(n_steps)
+    return param, float(start), float(stop), int(n_steps)
 
 
 def get_cli_args():
@@ -461,7 +461,7 @@ def main():
 
         # set up animation params
         param, start, stop, n_steps = args.animate
-        delta = (stop - start)/float(n_steps - 1)
+        delta = (stop - start)/max(1, n_steps - 1)
         sorting_args[param] = start
 
         gif_frames = []
@@ -472,8 +472,7 @@ def main():
             if not os.path.exists(dir_path):
                 os.makedirs(dir_path)
 
-        i = 1
-        while abs(sorting_args[param] - start) <= abs(stop - start):
+        for i in range(n_steps):
             # sort image according to new parameters
             print("sorting %s = %f..." % (param, sorting_args[param]))
             frame_name = "%s%s_frame_%d.png" % (dir_path, args.outfile, i)
