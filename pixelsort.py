@@ -1,12 +1,13 @@
 #!/usr/bin/python
 import argparse
 import logging
+import os
 from math import ceil
 from random import randint, random
 
 from PIL import Image
-from images2gif import images2gif
 
+import images2gif
 from edge_detection import edge_detect
 from pixelkeys import PIXEL_KEY_DICT, luma
 from pixelpaths import vertical_path, horizontal_path, PIXEL_PATH_DICT
@@ -43,6 +44,8 @@ def sort_image(image, size, vertical=False, path=None, max_interval=0, progressi
     :param image_threshold: If not None, uses pixel's brightness to determine sort intervals.
     Pixels that are outside the range [threshold, MAX - threshold] are not sorted. So a value of 0 will sort all pixels
     (depending on the value of other arguments, of course), while a value of 1 will not sorty any pixels.
+    :param image_mask: The image to use as an initial sorting mask. Edge data and other sorting intervals
+    will be applied on top of this.
     :return: The pixels of the resulting image as a list of (R,G,B) tuples
     """
     mask = create_sort_mask(image, size, vertical, path, max_interval, progressive_amount, randomize,
@@ -67,6 +70,7 @@ def create_sort_mask(image, size, vertical=False, path=None, max_interval=100, p
     :param randomize: Whether to randomize interval length
     :param edge_threshold: Threshold for creating sort intervals based on edge detection
     :param image_threshold: Threshold for creating sort intervals based on image color
+    :param image_mask: Image to use as a sorting mask
 
     :return: A 2d list of values {0,1}
     """
@@ -310,6 +314,11 @@ def splice_channel(original, sorted_img, channel):
     return out_pixels
 
 
+def str_to_animate_params(s):
+    param, start, stop, n_steps = s.split(" ")
+    return param, float(start), float(stop), float(n_steps)
+
+
 def get_cli_args():
     """
     Parses command line arguments. 
@@ -329,8 +338,9 @@ def get_cli_args():
                              "who exceed the given contrast threshold.")
     parser.add_argument("--image-threshold", type=float, default=None)
     parser.add_argument("--image-mask", type=str, default=None, help="Use a custom image for generating the mask")
-    parser.add_argument("-i", "--interval", type=int, default=0,
-                        help="The size of each sorting interval, in pixels. If 0, whole row is sorted.")
+    parser.add_argument("-i", "--max-interval", type=int, default=0,
+                        help="The size of each sorting interval, in pixels. If 0, whole row is sorted. "
+                             "If intervals are randomized, then this is the maximum size of the inerval.")
     parser.add_argument("-p", "--path", type=str, default="",
                         help="The type of path used to sort over the image. Horizontal by default.")
     parser.add_argument("--progressive-amount", type=float, default=0,
@@ -351,6 +361,9 @@ def get_cli_args():
                         help="Whether to distribute tiles randomly")
     parser.add_argument("--tile-density", type=float, default=1.0,
                         help="Approximately what fraction of the image is covered in tiles")
+    parser.add_argument("--animate", type=str_to_animate_params, default=None,
+                        help="Animate a certain parameter. "
+                             "This argument is a string '<param> <start> <stop> <n_steps>'")
     args = parser.parse_args()
     return args
 
@@ -386,7 +399,7 @@ def main():
         'key': key,
         'image_threshold': args.image_threshold,
         'image_mask': image_mask,
-        'max_interval': args.interval,
+        'max_interval': args.max_interval,
         'path': path,
         'progressive_amount': args.progressive_amount,
         'randomize': args.randomize,
@@ -399,31 +412,51 @@ def main():
         'tile_density': args.tile_density,
     }
 
-    logger.info("Sorting image....")
-    if args.use_tiles:
-        out_pixels = sort_image_tiles(original_pixels, img.size, sorting_args=sorting_args, **tile_args)
-    else:
-        out_pixels = sort_image(original_pixels, img.size, **sorting_args)
+    if args.animate is None:
+        logger.info("Sorting image....")
+        if args.use_tiles:
+            out_pixels = sort_image_tiles(original_pixels, img.size, sorting_args=sorting_args, **tile_args)
+        else:
+            out_pixels = sort_image(original_pixels, img.size, **sorting_args)
 
-    if args.channel is not None:
-        out_pixels = splice_channel(original_pixels, out_pixels, args.channel)
+        if args.channel is not None:
+            out_pixels = splice_channel(original_pixels, out_pixels, args.channel)
 
-    # gif test
-    gif_frames = []
-    for d in xrange(200, 0, -1):
-        print "sorting d = %f..." % d
-        out_pixels = sort_image(image=original_pixels, size=img.size, key=sum, vertical=True, image_threshold=d/200.0)
+        # write output image
+        logger.info("Writing output...")
         img_out = Image.new(img.mode, img.size)
         img_out.putdata(out_pixels)
-        gif_frames.append(img_out)
-    images2gif.writeGif("yolo2.gif", gif_frames, subRectangles=False)
+        img_out.save(args.outfile)
+        logger.info("Done!")
 
-    # write output image
-    logger.info("Writing output...")
-    img_out = Image.new(img.mode, img.size)
-    img_out.putdata(out_pixels)
-    img_out.save(args.outfile)
-    logger.info("Done!")
+    else:
+        # set up animation params
+        param, start, stop, n_steps = args.animate
+        delta = (stop - start)/float(n_steps - 1)
+        sorting_args[param] = start
+
+        gif_frames = []
+        # create directory to hold temporary frames
+        dir_path = args.outfile+"_frames"
+        if not os.path.exists(dir_path):
+            os.makedirs(dir_path)
+
+        i = 1
+        while abs(sorting_args[param] - start) <= abs(stop - start):
+            # sort image according to new parameters
+            print "sorting %s = %f..." % (param, sorting_args[param])
+            out_pixels = sort_image(image=original_pixels, size=img.size, **sorting_args)
+            img_out = Image.new(img.mode, img.size)
+            img_out.putdata(out_pixels)
+
+            # save current frame to disk, as well as store in memory
+            frame_name = "%s/%s_frame_%d.png" % (dir_path, args.outfile, i)
+            img_out.save(frame_name)
+            gif_frames.append(img_out)
+
+            sorting_args[param] += delta
+            i += 1
+        images2gif.writeGif(args.outfile+".gif", gif_frames, subRectangles=False)
 
 if __name__ == '__main__':
     main()

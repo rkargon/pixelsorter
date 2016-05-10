@@ -27,7 +27,7 @@ For the example figures, the original image used is this:
 
 #### Sorting Interval:
 
-The `-i` or `--interval` argument specified the length of individual intervals of pixels to sort.
+The `-i` or `--max-interval` argument specified the length of individual intervals of pixels to sort.
 By default, whole rows of the image are sorted at once. However, when `-i <INTEGER>` is used,
 pixels are sorted in consecutive groups of the given length.
 
