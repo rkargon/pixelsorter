@@ -67,6 +67,8 @@ Useful links
 
 import os, time
 
+import sys
+
 try:
     import PIL
     from PIL import Image
@@ -1063,13 +1065,13 @@ class NeuQuant:
         return a
 
 
-if __name__ == '__main__':
-    im = np.zeros((200, 200), dtype=np.uint8)
-    im[10:30, :] = 100
-    im[:, 80:120] = 255
-    im[-50:-40, :] = 50
-
-    images = [np.uint8(im * 1.0), np.uint8(im * 0.8), np.uint8(im * 0.6), np.uint8(im * 0.4), np.uint8(im * 0)]
-    writeGif('test.gif', images, duration=0.5, dither=0)
-
+def main():
+    # TODO fancier args
+    filenames = sys.argv[1:-1]
+    out_name = sys.argv[-1]
+    frames = list(map(Image.open, filenames))
+    writeGif(out_name, frames, subRectangles=False)
     print('done')
+
+if __name__ == '__main__':
+    main()
