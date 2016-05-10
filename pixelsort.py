@@ -2,10 +2,10 @@
 import argparse
 import logging
 import os
-from math import ceil
 from random import randint, random
 
 from PIL import Image
+from math import ceil
 
 import images2gif
 from edge_detection import edge_detect
@@ -82,10 +82,11 @@ def create_sort_mask(image, size, vertical=False, path=None, max_interval=100, p
         edge_data = edge_detect(image, size)
     else:
         edge_data = None
-    image_threshold = clamp(image_threshold, 0.0, 1.0)
+    if image_threshold is not None:
+        image_threshold = clamp(image_threshold, 0.0, 1.0)
 
     # use various image data to set up sort intervals, before computing random intervals
-    for i in xrange(len(pixel_mask)):
+    for i in range(len(pixel_mask)):
         if image_mask is not None and luma(image_mask[i]) > 128:
             pixel_mask[i] = 1
         # edge detection
@@ -134,7 +135,7 @@ def create_sort_mask(image, size, vertical=False, path=None, max_interval=100, p
             # if interval is 0, just sort whole line at once
             while i < interval or interval == 0:
                 try:
-                    coords = path.next()
+                    coords = next(path)
                 except StopIteration:
                     path_finished = True
                     break
@@ -201,7 +202,7 @@ def apply_sort_mask(image, size, sort_mask, vertical=False, path=None, key=None,
             px_indices.append(idx)
             if sort_mask[idx] == 1 or random() < sort_mask[idx]:
                 sorted_pixels = sorted([out_pixels[i] for i in px_indices], key=sort_key, reverse=reverse)
-                for i in xrange(len(px_indices)):
+                for i in range(len(px_indices)):
                     index = px_indices[i]
                     pixel = sorted_pixels[i]
                     out_pixels[index] = pixel
@@ -229,8 +230,8 @@ def get_tile_from_image(image, size, top_left_corner, tile_size):
     tile_x = min(size[0] - top_left_corner[0], tile_size[0])
     tile_y = min(size[1] - top_left_corner[1], tile_size[1])
     tile_size = tile_x, tile_y
-    for y in xrange(tile_size[1]):
-        for x in xrange(tile_size[0]):
+    for y in range(tile_size[1]):
+        for x in range(tile_size[0]):
             coords = (x + top_left_corner[0], y + top_left_corner[1])
             tile_pixels.append(image[coords_to_index(coords, size[0])])
     return tile_pixels, tile_size
@@ -245,8 +246,8 @@ def apply_tile_to_image(image, size, tile, tile_size, tile_corner):
     :param tile_size: The size of the tile as a tuple (width, height)
     :param tile_corner: The top left corner of the tile, in terms of the coordinates of the image, as a tuple (x,y)
     """
-    for y in xrange(tile_size[1]):
-        for x in xrange(tile_size[0]):
+    for y in range(tile_size[1]):
+        for x in range(tile_size[0]):
             img_coords = (x + tile_corner[0], y + tile_corner[1])
             image[coords_to_index(img_coords, size[0])] = tile[coords_to_index((x, y), tile_size[0])]
 
@@ -270,8 +271,8 @@ def sort_image_tiles(image, size, sorting_args, tile_size, tile_density=1.0, ran
     total_tiles = ceil(height / float(tile_height)) * ceil(width / float(tile_width))
     tiles_completed = 0
     pixels_per_tiles = tile_width * tile_height
-    for y in xrange(0, height, tile_height):
-        for x in xrange(0, width, tile_width):
+    for y in range(0, height, tile_height):
+        for x in range(0, width, tile_width):
             # logging
             tiles_completed += 1
             if tiles_completed % (200000 / pixels_per_tiles) == 0:
@@ -307,7 +308,7 @@ def splice_channel(original, sorted_img, channel):
     channel_idx = channels.index(channel)
 
     out_pixels = list(original)
-    for i in xrange(len(out_pixels)):
+    for i in range(len(out_pixels)):
         p = list(out_pixels[i])
         p[channel_idx] = sorted_img[i][channel_idx]
         out_pixels[i] = tuple(p)
@@ -418,7 +419,7 @@ def main():
     if args.image_mask is not None:
         mask_img = Image.open(args.image_mask)
         if mask_img.size != img.size:
-            print "Error: Image mask is not the same size as input image."
+            print("Error: Image mask is not the same size as input image.")
             exit()
         image_mask = list(mask_img.getdata())
     key = PIXEL_KEY_DICT.get(args.sortkey.lower(), None)
@@ -469,7 +470,7 @@ def main():
         i = 1
         while abs(sorting_args[param] - start) <= abs(stop - start):
             # sort image according to new parameters
-            print "sorting %s = %f..." % (param, sorting_args[param])
+            print("sorting %s = %f..." % (param, sorting_args[param]))
             frame_name = "%s/%s_frame_%d.png" % (dir_path, args.outfile, i)
             # sort current frame and save it to disk
             out_pixels = sort_image_with_cli_args(img, frame_name, sorting_args, tile_args, channel=args.channel,

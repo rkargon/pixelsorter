@@ -22,10 +22,10 @@ def edge_detect(image, size):
     """
     width, height = size
     edge_data = [None] * len(image)
-    gray_scale_img = map(luma, image)
+    gray_scale_img = list(map(luma, image))
     i = 0
-    for y in xrange(1, height-1):
-        for x in xrange(1, width-1):
+    for y in range(1, height-1):
+        for x in range(1, width-1):
             idx = coords_to_index((x, y), width)
 
             a, b, c = gray_scale_img[idx - 1 - width: idx + 2 - width]
@@ -55,7 +55,7 @@ def highlight_threshold(image, img_data, threshold, color=(255,0,0)):
     :return: The image, with high-value pixels highlighted
     """
     out_pixels = list(image)
-    for i in xrange(len(image)):
+    for i in range(len(image)):
         p, e = image[i], img_data[i]
         if e > threshold:
             out_pixels[i] = color
