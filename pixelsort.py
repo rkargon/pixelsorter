@@ -352,6 +352,21 @@ def str_to_animate_params(s):
     param, start, stop, n_steps = s.split(" ")
     return param, float(start), float(stop), int(n_steps)
 
+def get_gif_frames(img):
+    gif_frames = []
+    n = 0
+    while img:
+        if img.mode != "RGB":
+            image = img.convert(mode="RGB")
+        else:
+            image = img
+        gif_frames.append(image)
+        n +=1
+        try:
+            img.seek(n)
+        except EOFError:
+            break;
+    return gif_frames
 
 def get_cli_args():
     """
@@ -414,8 +429,13 @@ def main():
     # load image
         logger.info("Loading image...")
     img = Image.open(args.infile)
-    if img.mode != "RGB":
+    gif = None
+    if img.tile[0][0] == "gif":
+        gif = True
+    # converting modes in gifs seems to remove all frames but the first
+    if img.mode != "RGB" and not gif:
         img = img.convert(mode="RGB")
+
 
     # set up more complicated parameters
     image_mask = None
@@ -451,16 +471,26 @@ def main():
         tile_args = None
 
     if args.animate is None:
-        logger.info("Sorting image....")
-        sort_image_with_cli_args(image=img, outfile=args.outfile, sorting_args=sorting_args, tile_args=tile_args,
-                                 channel=args.channel, pixels=None, save=True)
+        if gif:
+            gif_frames = []
+            frames = get_gif_frames(img)
+            for f in frames:
+                frame = sort_image_with_cli_args(image=f, outfile=args.outfile, sorting_args=sorting_args,
+                                                      tile_args=tile_args, channel=args.channel, pixels=None,
+                                                      save=args.save_frames)
+                gif_frames.append(frame)
+            images2gif.writeGif(args.outfile+".gif", gif_frames, subRectangles=False)
+        else:
+            logger.info("Sorting image....")
+            sort_image_with_cli_args(image=img, outfile=args.outfile, sorting_args=sorting_args, tile_args=tile_args,
+                                     channel=args.channel, pixels=None, save=True)
 
     else:
-        # cache data that will be used multiple times
-        original_pixels = list(img.getdata())
-
         # set up animation params
         param, start, stop, n_steps = args.animate
+        if gif:
+            # replace n_steps with the length of the gif instead
+            n_steps = len(get_gif_frames(img))
         delta = (stop - start)/max(1, n_steps - 1)
         sorting_args[param] = start
 
@@ -471,17 +501,30 @@ def main():
             dir_path = args.outfile+"_frames/"
             if not os.path.exists(dir_path):
                 os.makedirs(dir_path)
-
-        for i in range(n_steps):
-            # sort image according to new parameters
-            print("sorting %s = %f..." % (param, sorting_args[param]))
-            frame_name = "%s%s_frame_%d.png" % (dir_path, args.outfile, i)
-            # sort current frame and save it to disk
-            out_pixels = sort_image_with_cli_args(img, frame_name, sorting_args, tile_args, channel=args.channel,
-                                                  pixels=original_pixels, save=args.save_frames)
-            gif_frames.append(out_pixels)
-            sorting_args[param] += delta
-            i += 1
+        i = 1
+        if gif:
+            frames = get_gif_frames(img)
+            for f in frames:
+                print("sorting %s = %f..." % (param, sorting_args[param]))
+                frame_name = "%s%s_frame_%d.png" % (dir_path, args.outfile, i)
+                out_pixels = sort_image_with_cli_args(f, frame_name, sorting_args, tile_args, channel=args.channel,
+                                                      pixels=f.getdata(), save=args.save_frames)
+                gif_frames.append(out_pixels)
+                sorting_args[param] += delta
+                i += 1
+        else:
+            # cache data that will be used multiple times
+            original_pixels = list(img.getdata())
+            for i in range(n_steps):
+                # sort image according to new parameters
+                print("sorting %s = %f..." % (param, sorting_args[param]))
+                frame_name = "%s%s_frame_%d.png" % (dir_path, args.outfile, i)
+                # sort current frame and save it to disk
+                out_pixels = sort_image_with_cli_args(img, frame_name, sorting_args, tile_args, channel=args.channel,
+                                                      pixels=original_pixels, save=args.save_frames)
+                gif_frames.append(out_pixels)
+                sorting_args[param] += delta
+                i += 1
         images2gif.writeGif(args.outfile+".gif", gif_frames, subRectangles=False)
 
 if __name__ == '__main__':
