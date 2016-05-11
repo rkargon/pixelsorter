@@ -412,8 +412,9 @@ def main():
         logging.basicConfig(format='%(levelname)s: %(message)s', level=logging.INFO)
 
     # load image
-        logger.info("Loading image...")
+    logger.info("Loading image...")
     img = Image.open(args.infile)
+    print(img.mode)
     if img.mode != "RGB":
         img = img.convert(mode="RGB")
 
@@ -474,7 +475,7 @@ def main():
 
         for i in range(n_steps):
             # sort image according to new parameters
-            print("sorting %s = %f..." % (param, sorting_args[param]))
+            print("sorting frame %d: %s = %f..." % (i, param, sorting_args[param]))
             frame_name = "%s%s_frame_%d.png" % (dir_path, args.outfile, i)
             # sort current frame and save it to disk
             out_pixels = sort_image_with_cli_args(img, frame_name, sorting_args, tile_args, channel=args.channel,
