@@ -13,11 +13,11 @@
 #     * Neither the name of the <organization> nor the
 #       names of its contributors may be used to endorse or promote products
 #       derived from this software without specific prior written permission.
-# 
-# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" 
+#
+# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
 # AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
 # IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
-# ARE DISCLAIMED. IN NO EVENT SHALL <COPYRIGHT HOLDER> BE LIABLE FOR ANY 
+# ARE DISCLAIMED. IN NO EVENT SHALL <COPYRIGHT HOLDER> BE LIABLE FOR ANY
 # DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
 # (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
 # LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
@@ -28,7 +28,7 @@
 """ Module images2gif
 
 Provides functionality for reading and writing animated GIF images.
-Use writeGif to write a series of numpy arrays or PIL images as an 
+Use writeGif to write a series of numpy arrays or PIL images as an
 animated GIF. Use readGif to read an animated gif as a series of numpy
 arrays.
 
@@ -40,11 +40,11 @@ Acknowledgements
 
 Many thanks to Ant1 for:
 * noting the use of "palette=PIL.Image.ADAPTIVE", which significantly
-  improves the results. 
+  improves the results.
 * the modifications to save each image with its own palette, or optionally
   the global palette (if its the same).
 
-Many thanks to Marius van Voorden for porting the NeuQuant quantization 
+Many thanks to Marius van Voorden for porting the NeuQuant quantization
 algorithm of Anthony Dekker to Python (See the NeuQuant class for its
 license).
 
@@ -52,7 +52,7 @@ Many thanks to Alex Robinson for implementing the concept of subrectangles,
 which (depending on image content) can give a very significant reduction in
 file size.
 
-This code is based on gifmaker (in the scripts folder of the source 
+This code is based on gifmaker (in the scripts folder of the source
 distribution of PIL)
 
 
@@ -148,16 +148,16 @@ def intToBin(i):
 
 class GifWriter:
     """ GifWriter()
-    
+
     Class that contains methods for helping write the animated GIF file.
-    
+
     """
 
     def getheaderAnim(self, im):
         """ getheaderAnim(im)
-        
-        Get animation header. To replace PILs getheader()[0] 
-        
+
+        Get animation header. To replace PILs getheader()[0]
+
         """
         bb = b'GIF89a'
         bb += intToBin(im.size[0])
@@ -167,15 +167,15 @@ class GifWriter:
 
     def getImageDescriptor(self, im, xy=None):
         """ getImageDescriptor(im, xy=None)
-        
+
         Used for the local color table properties per image.
         Otherwise global color table applies to all frames irrespective of
         whether additional colors comes in play that require a redefined
         palette. Still a maximum of 256 color per frame, obviously.
-        
+
         Written by Ant1 on 2010-08-22
         Modified by Alex Robinson in Janurary 2011 to implement subrectangles.
-        
+
         """
 
         # Default use full image and place at upper left
@@ -191,7 +191,7 @@ class GifWriter:
         bb += intToBin(im.size[0])  # image width
         bb += intToBin(im.size[1])  # image height
 
-        # packed field: local color table flag1, interlace0, sorted table0, 
+        # packed field: local color table flag1, interlace0, sorted table0,
         # reserved00, lct size111=7=2^(7+1)=256.
         bb += b'\x87'
 
@@ -200,10 +200,10 @@ class GifWriter:
 
     def getAppExt(self, loops=float('inf')):
         """ getAppExt(loops=float('inf'))
-        
+
         Application extension. This part specifies the amount of loops.
         If loops is 0 or inf, it goes on infinitely.
-        
+
         """
 
         if loops == 0 or loops == float('inf'):
@@ -219,21 +219,21 @@ class GifWriter:
 
     def getGraphicsControlExt(self, duration=0.1, dispose=2, transparent_flag=0, transparency_index=0):
         """ getGraphicsControlExt(duration=0.1, dispose=2)
-        
+
         Graphics Control Extension. A sort of header at the start of
-        each image. Specifies duration and transparancy. 
-        
+        each image. Specifies duration and transparancy.
+
         Dispose
         -------
           * 0 - No disposal specified.
           * 1 - Do not dispose. The graphic is to be left in place.
-          * 2 -	Restore to background color. The area used by the graphic 
+          * 2 -	Restore to background color. The area used by the graphic
             must be restored to the background color.
           * 3 -	Restore to previous. The decoder is required to restore the
-            area overwritten by the graphic with what was there prior to 
+            area overwritten by the graphic with what was there prior to
             rendering the graphic.
-          * 4-7 -To be defined. 
-        
+          * 4-7 -To be defined.
+
         """
 
         bb = b'\x21\xF9\x04'
@@ -247,11 +247,11 @@ class GifWriter:
 
     def handleSubRectangles(self, images, subRectangles):
         """ handleSubRectangles(images)
-        
-        Handle the sub-rectangle stuff. If the rectangles are given by the 
+
+        Handle the sub-rectangle stuff. If the rectangles are given by the
         user, the values are checked. Otherwise the subrectangles are
         calculated automatically.
-        
+
         """
 
         image_info = []
@@ -301,15 +301,15 @@ class GifWriter:
 
     def getSubRectangles(self, ims):
         """ getSubRectangles(ims)
-        
+
         Calculate the minimal rectangles that need updating each frame.
         Returns a two-element tuple containing the cropped images and a
         list of x-y positions.
-        
+
         Calculating the subrectangles takes extra time, obviously. However,
         if the image sizes were reduced, the actual writing of the GIF
         goes faster. In some cases applying this method produces a GIF faster.
-        
+
         """
 
         # Check image count
@@ -357,10 +357,10 @@ class GifWriter:
 
     def convertImagesToPIL(self, images, dither, nq=0, images_info=None):
         """ convertImagesToPIL(images, nq=0)
-        
-        Convert images to Paletted PIL images, which can then be 
+
+        Convert images to Paletted PIL images, which can then be
         written to a single animated GIF.
-        
+
         """
 
         # Convert to PIL images
@@ -414,9 +414,9 @@ class GifWriter:
 
     def writeGifToFile(self, fp, images, durations, loops, xys, disposes):
         """ writeGifToFile(fp, images, durations, loops, xys, disposes)
-        
+
         Given a set of images writes the bytes to the specified stream.
-        
+
         """
 
         # Obtain palette for all images and count each occurance
@@ -496,9 +496,9 @@ def writeGif(filename, images, duration=0.1, repeat=True, dither=False,
              nq=0, subRectangles=True, dispose=None):
     """ writeGif(filename, images, duration=0.1, repeat=True, dither=False,
                     nq=0, subRectangles=True, dispose=None)
-    
+
     Write an animated gif from the specified images.
-    
+
     Parameters
     ----------
     filename : string
@@ -519,13 +519,13 @@ def writeGif(filename, images, duration=0.1, repeat=True, dither=False,
         the color palette. This algorithm is superior, but slower than
         the standard PIL algorithm. The value of nq is the quality
         parameter. 1 represents the best quality. 10 is in general a
-        good tradeoff between quality and speed. When using this option, 
+        good tradeoff between quality and speed. When using this option,
         better results are usually obtained when subRectangles is False.
     subRectangles : False, True, or a list of 2-element tuples
         Whether to use sub-rectangles. If True, the minimal rectangle that
         is required to update each frame is automatically detected. This
         can give significant reductions in file size, particularly if only
-        a part of the image changes. One can also give a list of x-y 
+        a part of the image changes. One can also give a list of x-y
         coordinates if you want to do the cropping yourself. The default
         is True.
     dispose : int
@@ -533,7 +533,7 @@ def writeGif(filename, images, duration=0.1, repeat=True, dither=False,
         in place. 2 means the background color should be restored after
         each frame. 3 means the decoder should restore the previous frame.
         If subRectangles==False, the default is 2, otherwise it is 1.
-    
+
     """
 
     # Check PIL
@@ -595,10 +595,10 @@ def writeGif(filename, images, duration=0.1, repeat=True, dither=False,
 
 def readGif(filename, asNumpy=True):
     """ readGif(filename, asNumpy=True)
-    
-    Read images from an animated GIF file.  Returns a list of numpy 
+
+    Read images from an animated GIF file.  Returns a list of numpy
     arrays, or, if asNumpy is false, a list if PIL images.
-    
+
     """
 
     # Check PIL
@@ -646,19 +646,19 @@ def readGif(filename, asNumpy=True):
 
 class NeuQuant:
     """ NeuQuant(image, samplefac=10, colors=256)
-    
-    samplefac should be an integer number of 1 or higher, 1 
-    being the highest quality, but the slowest performance. 
-    With avalue of 10, one tenth of all pixels are used during 
+
+    samplefac should be an integer number of 1 or higher, 1
+    being the highest quality, but the slowest performance.
+    With avalue of 10, one tenth of all pixels are used during
     training. This value seems a nice tradeoff between speed
     and quality.
-    
+
     colors is the amount of colors to reduce the image to. This
     should best be a power of two.
-    
+
     See also:
     http://members.ozemail.com.au/~dekker/NEUQUANT.HTML
-    
+
     License of the NeuQuant Neural-Net Quantization Algorithm
     ---------------------------------------------------------
 
@@ -679,7 +679,7 @@ class NeuQuant:
     and/or sell copies of the Software, and to permit persons who receive
     copies from any such party to do so, with the only requirement being
     that this copyright notice remain intact.
-    
+
     """
 
     NCYCLES = None  # Number of learning cycles
@@ -1037,7 +1037,7 @@ class NeuQuant:
         return Image.fromarray(px).convert("RGB").quantize(palette=self.paletteImage())
 
     def quantize_without_scipy(self, image):
-        """" This function can be used if no scipy is availabe. 
+        """" This function can be used if no scipy is availabe.
         It's 7 times slower though.
         """
         w, h = image.size
@@ -1067,8 +1067,9 @@ class NeuQuant:
 
 def main():
     # TODO fancier args
-    filenames = sys.argv[1:-1]
-    out_name = sys.argv[-1]
+    args = sys.argv[1:]
+    filenames = args[1:-1]
+    out_name = args[-1]
     frames = list(map(Image.open, filenames))
     writeGif(out_name, frames, subRectangles=False)
     print('done')
