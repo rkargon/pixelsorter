@@ -64,7 +64,7 @@ Useful links
 
 """
 # todo: This module should be part of imageio (or at least based on)
-
+import argparse
 import os, time
 
 import sys
@@ -1066,12 +1066,15 @@ class NeuQuant:
 
 
 def main():
-    # TODO fancier args
-    args = sys.argv[1:]
-    filenames = args[1:-1]
-    out_name = args[-1]
-    frames = list(map(Image.open, filenames))
-    writeGif(out_name, frames, subRectangles=False)
+    parser = argparse.ArgumentParser(description='A tool for combining individual images into an animated gif.')
+    parser.add_argument("frames", nargs="*", help="The frames of the animation")
+    parser.add_argument("-o", "--outfile", required=True, help="The output image")
+    parser.add_argument("-d", "--duration", type=float, default=0.1, help="The time between frames, in seconds")
+    parser.add_argument("-r", "--repeat", action="store_true", help="Whether the gif should repeat.")
+    args = parser.parse_args()
+
+    frames = list(map(Image.open, args.frames))
+    writeGif(args.outfile, frames, subRectangles=False, repeat=args.repeat, duration=args.duration)
     print('done')
 
 if __name__ == '__main__':

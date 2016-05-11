@@ -517,9 +517,12 @@ def main():
         i = 1
         if gif:
             frames = get_gif_frames(img)
+            # way to get filename to pad with zeroes properly
+            n_digits = len(str(len(frames)))
+            format_str = "%%s%%s_frame_%%0%dd.png" % n_digits
             for f in frames:
                 print("sorting %s = %f..." % (param, sorting_args[param]))
-                frame_name = "%s%s_frame_%d.png" % (dir_path, args.outfile, i)
+                frame_name = format_str % (dir_path, args.outfile, i)
                 out_pixels = sort_image_with_cli_args(f, frame_name, sorting_args, tile_args, channel=args.channel,
                                                       pixels=f.getdata(), save=args.save_frames)
                 gif_frames.append(out_pixels)
@@ -528,10 +531,15 @@ def main():
         else:
             # cache data that will be used multiple times
             original_pixels = list(img.getdata())
+
+            # way to get filename to pad with zeroes properly
+            n_digits = len(str(n_steps))
+            format_str = "%%s%%s_frame_%%0%dd.png" % n_digits
+
             for i in range(n_steps):
                 # sort image according to new parameters
                 print("sorting frame %d: %s = %f..." % (i, param, sorting_args[param]))
-                frame_name = "%s%s_frame_%d.png" % (dir_path, args.outfile, i)
+                frame_name = format_str % (dir_path, args.outfile, i)
                 # sort current frame and save it to disk
                 out_pixels = sort_image_with_cli_args(img, frame_name, sorting_args, tile_args, channel=args.channel,
                                                       pixels=original_pixels, save=args.save_frames)
