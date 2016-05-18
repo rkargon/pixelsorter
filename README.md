@@ -208,6 +208,30 @@ Note that with low `-e` values, nearly the whole image is undisturbed,
 since almost everything is considered an 'edge',
 but with high `-e` values everything is sorted except for the starkly-contrasted trees.
 
+### Image Thresholds
+
+Image colors can also be used to determine sorting intervals. When `--image-threshold <FLOAT>`
+is specified, pixels that are too dark or too bright are not sorted,
+and delimit sorting intervals. The value given determines the thresholds for pixel brightness.
+This value ranges from 0 (meaning all pixels are within the brightness threshold, and everything gets sorted),
+to 1 (meaning all pixels are out of the brightness threshold, and nothing is sorted).
+
+The original image:
+
+![Original Image][original]
+
+Sorting with `--image-threshold 0`:
+
+![Sorting with --image-threshold 0][sort-image-threshold-0]
+
+Sorting with `--image-threshold 0.6`:
+
+![Sorting with --image-threshold 0.6][sort-image-threshold-0.6]
+
+Sorting with `--image-threshold 1`:
+
+![Sorting with --image-threshold 1][sort-image-threshold-1]
+
 ### Tiles
 
 One can also sort individual tiles in the image. With the `--use-tiles` flag,
@@ -237,6 +261,15 @@ Sorting with `--use-tiles --tile-x 20 --tile-y 20 --tile-density 0.5 --randomize
 ![Sorting with custom sized tiles][sort-tiles-half-random]
 
 
+### Channels
+
+It is also possible to sort individual channels of an RGB image, using the `--channel {red,green,blue}` flag.
+
+Sorting with `--channel red` and `-s sum -i 100 -r`
+
+![Sorting red channel only][sort-channel-red]
+
+### Animation
 
 [//]: # "Figures"
 [original]: docs/figures/original.jpg
@@ -262,7 +295,11 @@ Sorting with `--use-tiles --tile-x 20 --tile-y 20 --tile-density 0.5 --randomize
 [sort-edge-detect-50]: docs/figures/sort-edge-detect-50.jpg
 [sort-edge-detect-100]: docs/figures/sort-edge-detect-100.jpg
 [sort-edge-detect-200]: docs/figures/sort-edge-detect-200.jpg
+[sort-image-threshold-0]: docs/figures/sort-image-threshold-0.jpg
+[sort-image-threshold-0.6]: docs/figures/sort-image-threshold-0.6.jpg
+[sort-image-threshold-1]: docs/figures/sort-image-threshold-1.jpg
 [sort-tiles-default]: docs/figures/sort-tiles-default.jpg
 [sort-tiles-custom-size]: docs/figures/sort-tiles-custom-size.jpg
 [sort-tiles-half]: docs/figures/sort-tiles-half.jpg
 [sort-tiles-half-random]: docs/figures/sort-tiles-half-random.jpg
+[sort-channel-red]: docs/figures/sort-channel-red.jpg
