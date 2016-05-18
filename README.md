@@ -232,6 +232,28 @@ Sorting with `--image-threshold 1`:
 
 ![Sorting with --image-threshold 1][sort-image-threshold-1]
 
+### Image Masks
+
+One can also specify a custom image that will be used as a sort mask.
+In this case, pixels that with a brightness of more than half will be used to delimit sort intervals,
+while darker pixels will be ignored. This can be done with the `--image-mask <FILENAME>` flag.
+Note that the image mask must have *exactly* the same size
+
+Sorting without `--image-mask` and with `-R`:
+
+![Sorting without image mask][default]
+
+An image mask that can be applied to an image:
+
+![Image mask][image-mask]
+
+Sorting with `--image-mask image-mask.jpg` and `-R`:
+
+![Sorting with image mask][sort-image-mask]
+
+The parts of the image corresponding to black pixels in the pixel mask are sorted,
+while the parts corresponding to white pixels are not.
+
 ### Tiles
 
 One can also sort individual tiles in the image. With the `--use-tiles` flag,
@@ -271,6 +293,22 @@ Sorting with `--channel red` and `-s sum -i 100 -r`
 
 ### Animation
 
+This pixelsorting library also includes tools for creating and modifying animated gifs.
+To change a certain parameter over time, on can use the `--animate "PARAM START STOP N_STEPS"` flag.
+For instance, to change the sorting interval from 10 to 100 over 15 frames, one could specify
+`--animage "max_interval 10 100 15"`.
+Note that currently, this is only possible for parameters that have numerical values.
+Also, only one parameter can be animated at a time.
+
+Animated sort, with  `--animate "max_interval 2 30 15"` and `-s sum -r`:
+
+![Animated sort][sort-animated]
+
+To save intermediate frames, use the `--save-frames` flag.
+
+One can also input animated gifs, and each frame of the gif will be modified according to the command line arguments.
+If `--animate "..."` is specified as well, the animated settings will be applied frame-by-frame to the gif. 
+
 [//]: # "Figures"
 [original]: docs/figures/original.jpg
 [default]: docs/figures/sort-sum.jpg
@@ -298,8 +336,11 @@ Sorting with `--channel red` and `-s sum -i 100 -r`
 [sort-image-threshold-0]: docs/figures/sort-image-threshold-0.jpg
 [sort-image-threshold-0.6]: docs/figures/sort-image-threshold-0.6.jpg
 [sort-image-threshold-1]: docs/figures/sort-image-threshold-1.jpg
+[image-mask]: docs/figures/image-mask.jpg
+[sort-image-mask]: docs/figures/sort-image-mask.jpg
 [sort-tiles-default]: docs/figures/sort-tiles-default.jpg
 [sort-tiles-custom-size]: docs/figures/sort-tiles-custom-size.jpg
 [sort-tiles-half]: docs/figures/sort-tiles-half.jpg
 [sort-tiles-half-random]: docs/figures/sort-tiles-half-random.jpg
 [sort-channel-red]: docs/figures/sort-channel-red.jpg
+[sort-animated]: docs/figures/sort-animated.gif
