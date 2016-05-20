@@ -307,7 +307,7 @@ Animated sort, with  `--animate "max_interval 2 30 15"` and `-s sum -r`:
 To save intermediate frames, use the `--save-frames` flag.
 
 One can also input animated gifs, and each frame of the gif will be modified according to the command line arguments.
-If `--animate "..."` is specified as well, the animated settings will be applied frame-by-frame to the gif. 
+If `--animate "..."` is specified as well, the animated settings will be applied frame-by-frame to the gif.
 
 [//]: # "Figures"
 [original]: docs/figures/original.jpg

@@ -2,7 +2,7 @@
 import argparse
 import logging
 import os
-from random import randint, random
+from random import randint, random, seed
 
 from PIL import Image
 from math import ceil
@@ -429,6 +429,8 @@ def get_cli_args():
                              "This argument is a string '<param> <start> <stop> <n_steps>'")
     parser.add_argument("--save-frames", action='store_true', default=False,
                         help="Whether to save animation frames as individual pictures")
+    parser.add_argument("--fix-random-seed", action='store_true', default=False,
+                        help="Set the random seed to 0 at the start of the program. Useful for testing and debugging.")
     args = parser.parse_args()
     return args
 
@@ -439,6 +441,10 @@ def main():
     # set up logging
     if args.log:
         logging.basicConfig(format='%(levelname)s: %(message)s', level=logging.INFO)
+
+    # fix random seed if necessary
+    if args.fix_random_seed:
+        seed(0)
 
     # load image
     logger.info("Loading image...")
