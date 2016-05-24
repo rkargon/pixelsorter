@@ -1,5 +1,7 @@
 TODO for Pixelsorting
 ---------------------
- - better random walks
- - tools for creating gifs
- - add tests
+ - better circles
+ - seed sorting
+ - more curved paths
+ - parameters for various paths (e.g. angle of path)
+ - finish tests

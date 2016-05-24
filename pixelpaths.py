@@ -33,6 +33,10 @@ def vertical_path(size):
     return (((x, y) for y in range(height)) for x in range(width))
 
 
+def angled_path(size):
+    width, height = size
+
+
 def diagonal_path(size):
     """
     Creates a set of diagonal paths moving from the top left to the bottom right of the image.
