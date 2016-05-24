@@ -2,7 +2,9 @@
 import argparse
 import logging
 import os
+import re
 from random import randint, random, seed
+from urllib.request import urlopen
 
 from PIL import Image
 from math import ceil
@@ -448,7 +450,13 @@ def main():
 
     # load image
     logger.info("Loading image...")
-    img = Image.open(args.infile)
+    if re.match(r"https?://", args.infile):
+        response = urlopen(args.infile)
+        img_size = int(response.getheader("Content-Length"))
+        logger.info("Downloading file (%dKB)..." % (img_size//1000))
+        img = Image.open(response)
+    else:
+        img = Image.open(args.infile)
     gif = None
     if img.tile[0][0] == "gif":
         gif = True
