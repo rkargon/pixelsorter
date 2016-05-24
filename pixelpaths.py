@@ -168,6 +168,34 @@ def vertical_random_walk(size):
     return random_walk_path(size, distribution, start_points)
 
 
+def concentric_circles_path(size):
+
+    def concentric_circle(start, radius):
+        x, y = 0, radius
+        r2 = radius*radius
+        coords = [(x, y)]
+        while y > x:
+            x += 1
+            if x*x + y*y > r2 + 1:
+                y -= 1
+            coords.append((x, y))
+
+        # TODO points on axes (0, y), (x, 0), etc. are double-counted
+        next_octant = [(y, x) for x, y in reversed(coords)]
+        coords.extend(next_octant)
+        next_quadrant = [(y, -x) for x, y in coords]
+        coords.extend(next_quadrant)
+        next_half = [(-x, -y) for x, y in coords]
+        coords.extend(next_half)
+        for x, y in coords:
+            yield (x+start[0], y+start[1])
+
+    width, height = size
+    start_x, start_y = width//2, height//2
+    for r in range(height - start_y):
+        yield concentric_circle((start_x, start_y), r)
+
+
 def path_to_list(path):
     """
     Converts a path into a two-dimensional list of coordinates
@@ -178,6 +206,7 @@ def path_to_list(path):
     return [list(r) for r in path]
 
 PIXEL_PATH_DICT = {
+    'circles': concentric_circles_path,
     'concentric': concentric_rectangle_path,
     'diagonal': diagonal_path,
     'diagonal-single': diagonal_single_path,
