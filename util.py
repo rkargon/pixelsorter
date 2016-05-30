@@ -38,6 +38,14 @@ def index_to_coords(index, width):
     return index % width, floor(index / width)
 
 
+def in_bounds(min_b, max_b, point):
+    if point[0] >= max_b[0] or point[0] < min_b[0]:
+        return False
+    if point[1] >= max_b[1] or point[1] < min_b[1]:
+        return False
+    return True
+
+
 def weighted_random_choice(items):
     """
     Returns a weighted random choice from a list of items.

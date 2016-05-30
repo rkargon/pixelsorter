@@ -3,16 +3,16 @@ import argparse
 import logging
 import os
 import re
+from math import ceil
 from random import randint, random, seed
 from urllib.request import urlopen
 
 from PIL import Image
-from math import ceil
 
 import images2gif
 from edge_detection import edge_detect
 from pixelkeys import PIXEL_KEY_DICT, luma
-from pixelpaths import vertical_path, horizontal_path, PIXEL_PATH_DICT
+from pixelpaths import vertical_path, horizontal_path, PIXEL_PATH_DICT, path_to_list
 from util import coords_to_index, clamp
 
 # get logger for current script (even across different modules)
@@ -32,7 +32,8 @@ def sort_image(image, size, vertical=False, path=None, max_interval=0, progressi
     :param progressive_amount: If this is non-zero,
     then the sorting interval increases as one progresses row-by-row through the image.
     progressive_amount indicates the amount, in pixels, by which to increase the sorting interval after each row.
-    :param path: The specific path used to iterate through the image.
+    :param path: The specific path used to iterate through the image, as a list of rows,
+    where each row is a list of (x, y) coordinates.
     :param image: A list of tuples (R,G,B) representing the pixels of the image
     :param size: The size of the image as a tuple (width, height)
     :param vertical: Whether or not the color sorting is applied vertically (the default is horizontal)
@@ -66,7 +67,7 @@ def create_sort_mask(image, size, vertical=False, path=None, max_interval=100, p
     :param image: The image to create a mask from
     :param size: The size of the image
     :param vertical: Whether to use a vertical path
-    :param path: The path to use
+    :param path: The path to use, as a list of lists of (x, y) coordinates
     :param max_interval: The maximum sort interval
     :param progressive_amount: The rate at which the sort interval should increase
     :param randomize: Whether to randomize interval length
@@ -101,14 +102,13 @@ def create_sort_mask(image, size, vertical=False, path=None, max_interval=100, p
             if brightness < t or brightness > 255 - t:
                 pixel_mask[i] = 1
 
-    # select path to go through image
+    # if path not given, use a horizontal or vertical path
     if path is None:
         if vertical:
             pixel_iterator = vertical_path(size)
         else:
             pixel_iterator = horizontal_path(size)
-    else:
-        pixel_iterator = path(size)
+        path = path_to_list(pixel_iterator)
 
     # check if interval should increase progressively through image
     if progressive_amount > 0:
@@ -118,8 +118,8 @@ def create_sort_mask(image, size, vertical=False, path=None, max_interval=100, p
 
     # traverse image and compute random sort intervals
     pixels_sorted = 0
-    for path in pixel_iterator:
-
+    for row in path:
+        row_idx = 0
         path_finished = False
         # traverse path until it is finished
         while not path_finished:
@@ -136,9 +136,10 @@ def create_sort_mask(image, size, vertical=False, path=None, max_interval=100, p
             coords = None
             # if interval is 0, just sort whole line at once
             while i < interval or interval == 0:
-                try:
-                    coords = next(path)
-                except StopIteration:
+                if row_idx < len(row):
+                    coords = row[row_idx]
+                    row_idx += 1
+                else:
                     path_finished = True
                     break
 
@@ -170,7 +171,7 @@ def apply_sort_mask(image, size, sort_mask, vertical=False, path=None, key=None,
     :param size: The size of the image
     :param sort_mask: The sort mask to use, a list of {0, 1} values
     :param vertical: Whether to sort vertically
-    :param path: The sort path to use
+    :param path: The path to use, as a list of lists of (x, y) coordinates
     :param key: Which function to order pixels by (e.g. brightness, saturation)
     :param discretize: Whether to group key values into bins
     :param reverse: Whether to reverse sort order.
@@ -185,22 +186,21 @@ def apply_sort_mask(image, size, sort_mask, vertical=False, path=None, key=None,
     else:
         sort_key = key
 
-    # select path to go through image
+    # if path not given, use a horizontal or vertical path
     if path is None:
         if vertical:
             pixel_iterator = vertical_path(size)
         else:
             pixel_iterator = horizontal_path(size)
-    else:
-        pixel_iterator = path(size)
+        path = path_to_list(pixel_iterator)
 
     # for logging progress
     pixels_sorted = 0
 
     # for each path
-    for path in pixel_iterator:
+    for row in path:
         px_indices = []
-        for coords in path:
+        for coords in row:
             idx = coords_to_index(coords, width)
             px_indices.append(idx)
             if sort_mask[idx] == 1 or random() < sort_mask[idx]:
@@ -474,6 +474,9 @@ def main():
         image_mask = list(mask_img.getdata())
     key = PIXEL_KEY_DICT.get(args.sortkey.lower(), None)
     path = PIXEL_PATH_DICT.get(args.path.lower(), None)
+    # get all pixels for a path ahead of time.
+    # This is because paths need to be iterated over twice, and randomness in a path may mess up the second pass.
+    path_coords = path_to_list(path(img.size)) if path is not None else None
 
     sorting_args = {
         'discretize': args.discretize,
@@ -482,7 +485,7 @@ def main():
         'image_threshold': args.image_threshold,
         'image_mask': image_mask,
         'max_interval': args.max_interval,
-        'path': path,
+        'path': path_coords,
         'progressive_amount': args.progressive_amount,
         'randomize': args.randomize,
         'reverse': args.reverse,

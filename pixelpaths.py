@@ -6,9 +6,10 @@ Each function produces an iterator of 'rows' over a given image, and each 'row' 
 representing pixels.
 However, the paths produced don't have to be necessarily actual rows or columns.
 """
+from math import sqrt
 from random import random
 
-from util import weighted_random_choice
+from util import weighted_random_choice, in_bounds
 
 
 def horizontal_path(size):
@@ -172,69 +173,103 @@ def vertical_random_walk(size):
     return random_walk_path(size, distribution, start_points)
 
 
+def bresenham_circle_octant(radius):
+    """
+    Uses Bresenham's algorithm to draw a single octant of a circle with thickness 1,
+    centered on the origin and with the given radius.
+    :param radius: The radius of the circle to draw
+    :return: A list of integer coordinates representing pixels.
+    Starts at (radius, 0) and end with a pixel (x, y) where x == y.
+    """
+    x, y = radius, 0
+    r2 = radius * radius
+    coords = []
+    while x >= y:
+        coords.append((x, y))
+        y += 1
+        if abs((x - 1) * (x - 1) + y * y - r2) < abs(x * x + y * y - r2):
+            x -= 1
+    # add a point on the line x = y at the end if it's not already there.
+    if coords[-1][0] != coords[-1][1]:
+        coords.append((coords[-1][0], coords[-1][0]))
+    return coords
+
+
+def concentric_circle(center, radius, size=None):
+    """
+    Draws a circle with the given center and radius.
+    This is designed to ensure that concentric circles with integer radii are "airtight",
+    i.e. there are not unfilled pixels between them.
+    :param center: The (x, y) coordinates of the center of the circle
+    :param radius:
+    :param size: If not None, the size of the image. This is used to skip pizxels that are out of bounds.
+    :return: This is a generator that yields (x,y) coordinates of the circle one at a time
+    """
+    c_out = bresenham_circle_octant(radius + 1)
+    c_in = bresenham_circle_octant(radius)
+    coords = []
+
+    # note that in this loop, y also serves as the array index,
+    # since it starts at 0 and increments each element.
+    for x, y in c_in:
+        for x1 in range(x, c_out[y][0]):
+            coords.append((x1, y))
+    # copy octant 8 times to get other pixels
+    # TODO might recount pixels where x == y
+    next_octant = [(y, x) for x, y in reversed(coords)]
+    coords.extend(next_octant)
+    next_quadrant = [(-y, x) for x, y in coords]
+    coords.extend(next_quadrant)
+    next_half = [(-x, -y) for x, y in coords]
+    coords.extend(next_half)
+
+    for x, y in coords:
+        c = x + center[0], y + center[1]
+        if size is not None:
+            if not in_bounds((0, 0), size, c):
+                continue
+        yield c
+
+
+def fill_concentric_circles(radius, center, size):
+    """
+    Returns a path that fills a concentric circle with the given radius and center.
+    :param radius:
+    :param center:
+    :param size: The size of the image, used to skip points that are out of bounds.
+    :return: Yields iterators, where each iterator yields (x,y) coordinates of points about the circle.
+    The path moves outwards from the center of the circle.
+    If `size` is specified, points that are out of bounds are skipped.
+    """
+    for r in range(radius):
+        yield concentric_circle(center, r, size=size)
+
+
 def concentric_circles_path(size):
     """
     Yields a set of paths that are concentric circles, moving outwards, about the center of the image.
     :param size: The (width, height) of the image
     :return: Yields individual circles, where each circle is a generator that yields pixel coordinates. 
     """
-
-    def bresenham_circle_octant(radius):
-        """
-        Uses Bresenham's algorithm to draw a single octant of a circle with thickness 1,
-        centered on the origin and with the given radius.
-        :param radius: The radius of the circle to draw
-        :return: A list of integer coordinates representing pixels.
-        Starts at (radius, 0) and end with a pixel (x, y) where x == y.
-        """
-        x, y = radius, 0
-        r2 = radius*radius
-        coords = []
-        while x >= y:
-            coords.append((x, y))
-            y += 1
-            if abs((x-1)*(x-1) + y*y - r2) < abs(x*x + y*y - r2):
-                x -= 1
-        # add a point on the line x = y at the end if it's not already there.
-        if coords[-1][0] != coords[-1][1]:
-            coords.append((coords[-1][0], coords[-1][0]))
-        return coords
-
-    def concentric_circle(center, radius):
-        """
-        Draws a circle with the given center and radius.
-        This is designed to ensure that concentric circles with integer radii are "aritight",
-        i.e. there are not unfilled pixels between them.
-        :param center: The (x, y) coordinates of the center of the circle
-        :param radius:
-        :return: This is a generator that yields (x,y) coordinates of the circle one at a time
-        """
-        c_out = bresenham_circle_octant(radius+1)
-        c_in = bresenham_circle_octant(radius)
-        coords = []
-
-        # note that in this loop, y also serves as the array index,
-        # since it starts at 0 and increments each element.
-        for x, y in c_in:
-            for x1 in range(x, c_out[y][0]):
-                coords.append((x1, y))
-        # copy octant 8 times to get other pixels
-        # TODO might recount pixels where x == y
-        next_octant = [(y, x) for x, y in reversed(coords)]
-        coords.extend(next_octant)
-        next_quadrant = [(-y, x) for x, y in coords]
-        coords.extend(next_quadrant)
-        next_half = [(-x, -y) for x, y in coords]
-        coords.extend(next_half)
-
-        for x, y in coords:
-            yield x+center[0], y+center[1]
-
     width, height = size
-    start_x, start_y = width//2, height//2
-    for r in range(height - start_y):
-        yield concentric_circle((start_x, start_y), r)
+    x0, y0 = width // 2, height // 2
+    max_radius = int(sqrt(2) * max(height, width))
+    yield from fill_concentric_circles(radius=max_radius, center=(x0, y0), size=size)
 
+
+def fill_with_circles_path(size, radius=100):
+    """
+    Chooses a bunch random circles of the given radius to iterate over.
+    :param size: The size of the image
+    :param radius: The radius of the circles in question
+    :return: Yields indi
+    """
+    # TODO maybe do staggered, uniform circles instead of random ones?
+    width, height = size
+    dx = dy = int(2 * radius / sqrt(2))
+    for x in range(dx // 2, width, dx):
+        for y in range(dy // 2, height, dy):
+            yield from fill_concentric_circles(center=(x, y), radius=radius, size=size)
 
 
 def path_to_list(path):
@@ -246,11 +281,13 @@ def path_to_list(path):
     """
     return [list(r) for r in path]
 
+
 PIXEL_PATH_DICT = {
     'circles': concentric_circles_path,
     'concentric': concentric_rectangle_path,
     'diagonal': diagonal_path,
     'diagonal-single': diagonal_single_path,
+    'fill-circles': fill_with_circles_path,
     'horizontal': horizontal_path,
     'random-walk': random_walk_path,
     'random-walk-horizontal': horizontal_random_walk,
