@@ -6,10 +6,10 @@ Each function produces an iterator of 'rows' over a given image, and each 'row' 
 representing pixels.
 However, the paths produced don't have to be necessarily actual rows or columns.
 """
-from math import sqrt
+from math import sqrt, tan, radians
 from random import random
 
-from util import weighted_random_choice, in_bounds
+from util import weighted_random_choice, in_bounds, sign
 
 
 def horizontal_path(size):
@@ -34,8 +34,44 @@ def vertical_path(size):
     return (((x, y) for y in range(height)) for x in range(width))
 
 
-def angled_path(size):
+def draw_line(start, size, slope):
+    error = -1.0
+    if slope > 1:
+        slope = 1/slope
+        switch_xy = True
+    else:
+        switch_xy = False
+    slope_sgn = sign(slope)
+    # represent change from inital x and y. If slope > 1, these are switched, since the algorithm only works when
+    # the slope is less than 1.
+    dx = dy = 0
+    current_point = start
+    x0, y0 = start
+    while in_bounds((0, 0), size, current_point):
+        yield current_point
+        dx += 1
+        error += abs(slope)
+        if error > 0:
+            dy += slope_sgn
+            error -= 1
+        current_point = (dx + x0, dy + y0) if not switch_xy else (x0 + dy, y0 + dx)
+
+
+def angled_path(size, angle=0):
+    if angle % 180 == 0:
+        yield from horizontal_path(size)
+        return
+    if angle % 180 == 90:
+        yield from vertical_path(size)
+        return
     width, height = size
+    slope = tan(radians(angle))
+    start_y = 0 if slope > 0 else height - 1
+    for x in range(width-1, 0, -1):
+        yield draw_line((x, start_y), size, slope)
+    for y in range(height):
+        yield draw_line((0, y), size, slope)
+
 
 
 def diagonal_path(size):
@@ -231,7 +267,7 @@ def concentric_circle(center, radius, size=None):
         yield c
 
 
-def fill_concentric_circles(radius, center, size):
+def fill_concentric_circles(size, center, radius):
     """
     Returns a path that fills a concentric circle with the given radius and center.
     :param radius:
@@ -259,16 +295,17 @@ def concentric_circles_path(size):
 
 def fill_with_circles_path(size, radius=100):
     """
-    Chooses a bunch random circles of the given radius to iterate over.
+    Covers an image with a set of overlapping circles of the given radius.
     :param size: The size of the image
     :param radius: The radius of the circles in question
-    :return: Yields indi
+    :return: Yields a set of filled circles that cover the whole image.
+    Each circle is made up of individual concentric circles.
     """
-    # TODO maybe do staggered, uniform circles instead of random ones?
     width, height = size
+    radius = int(radius)
     dx = dy = int(2 * radius / sqrt(2))
-    for x in range(dx // 2, width, dx):
-        for y in range(dy // 2, height, dy):
+    for x in range(dx // 2, width + dx, dx):
+        for y in range(dy // 2, height + dy, dy):
             yield from fill_concentric_circles(center=(x, y), radius=radius, size=size)
 
 
@@ -283,6 +320,7 @@ def path_to_list(path):
 
 
 PIXEL_PATH_DICT = {
+    'angled-line': angled_path,
     'circles': concentric_circles_path,
     'concentric': concentric_rectangle_path,
     'diagonal': diagonal_path,

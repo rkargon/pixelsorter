@@ -2,8 +2,17 @@
 """
 Math and other utility functions
 """
+import re
 from math import floor
 from random import random
+
+
+def sign(x):
+    if x < 0:
+        return -1
+    elif x > 0:
+        return 1
+    return 0
 
 
 def clamp(x, a, b):
@@ -45,6 +54,37 @@ def in_bounds(min_b, max_b, point):
         return False
     return True
 
+
+def parse_arg_type(arg):
+    if type(arg) != str:
+        return arg
+    else:
+        # check int
+        try:
+            return int(arg)
+        except ValueError:
+            pass
+        # check float
+        try:
+            return float(arg)
+        except ValueError:
+            pass
+        # check bool
+        if arg.lower() == "true":
+            return True
+        elif arg.lower() == "false":
+            return False
+        # return any other string
+        return arg
+
+
+def parse_path_arg(arg):
+    m = re.match(r"^([^=]+?)=([^=]+?)$", arg)
+    if m is None:
+        return None
+    else:
+        arg_name, arg_value = m.groups()
+        return arg_name, parse_arg_type(arg_value)
 
 def weighted_random_choice(items):
     """

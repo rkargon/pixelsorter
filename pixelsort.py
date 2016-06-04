@@ -13,7 +13,7 @@ import images2gif
 from edge_detection import edge_detect
 from pixelkeys import PIXEL_KEY_DICT, luma
 from pixelpaths import vertical_path, horizontal_path, PIXEL_PATH_DICT, path_to_list
-from util import coords_to_index, clamp
+from util import coords_to_index, clamp, parse_arg_type, parse_path_arg
 
 # get logger for current script (even across different modules)
 logger = logging.getLogger(__name__)
@@ -473,10 +473,29 @@ def main():
             exit()
         image_mask = list(mask_img.getdata())
     key = PIXEL_KEY_DICT.get(args.sortkey.lower(), None)
-    path = PIXEL_PATH_DICT.get(args.path.lower(), None)
-    # get all pixels for a path ahead of time.
-    # This is because paths need to be iterated over twice, and randomness in a path may mess up the second pass.
-    path_coords = path_to_list(path(img.size)) if path is not None else None
+
+    # parse pixel path, and any arguments given
+    path_split = args.path.lower().split()
+    if len(path_split) == 0:
+        path_coords = None
+    else:
+        path_name, *path_args = path_split
+        path = PIXEL_PATH_DICT.get(path_name, None)
+
+        path_args = [parse_path_arg(a) for a in path_args]
+        if None in path_args:
+            print("Error: Arguments for path must be all of type 'name=value'.")
+            exit()
+        path_kwargs = dict(path_args)
+        # some janky reflection to get the number of arguments that this type of path accepts
+        arg_count = path.__code__.co_argcount - 1
+        if arg_count < len(path_kwargs):
+            print("Error: Path '%s' only takes %d argument(s)." % (path_name, arg_count))
+            exit()
+
+        # get all pixels for a path ahead of time.
+        # This is because paths need to be iterated over twice, and randomness in a path may mess up the second pass.
+        path_coords = path_to_list(path(img.size, **path_kwargs))
 
     sorting_args = {
         'discretize': args.discretize,
