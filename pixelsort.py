@@ -13,7 +13,7 @@ import images2gif
 from edge_detection import edge_detect
 from pixelkeys import PIXEL_KEY_DICT, luma
 from pixelpaths import vertical_path, horizontal_path, PIXEL_PATH_DICT, path_to_list
-from util import coords_to_index, clamp, parse_arg_type, parse_path_arg
+from util import coords_to_index, clamp
 
 # get logger for current script (even across different modules)
 logger = logging.getLogger(__name__)
@@ -352,6 +352,60 @@ def sort_image_with_cli_args(image, outfile, sorting_args, tile_args=None, chann
     return img_out
 
 
+def parse_path_args(arg_str):
+    # parse pixel path, and any arguments given
+    path_split = arg_str.lower().split()
+    if len(path_split) == 0:
+        return None, None
+    else:
+        path_name, *path_args = path_split
+        path = PIXEL_PATH_DICT.get(path_name, None)
+
+        path_args = [parse_path_arg(a) for a in path_args]
+        if None in path_args:
+            print("Error: Arguments for path must be all of type 'name=value'.")
+            exit()
+        path_kwargs = dict(path_args)
+        # some janky reflection to get the number of arguments that this type of path accepts
+        arg_count = path.__code__.co_argcount - 1
+        if arg_count < len(path_kwargs):
+            print("Error: Path '%s' only takes %d argument(s)." % (path_name, arg_count))
+            exit()
+        return path_name, path_kwargs
+
+
+def parse_arg_type(arg):
+    if type(arg) != str:
+        return arg
+    else:
+        # check int
+        try:
+            return int(arg)
+        except ValueError:
+            pass
+        # check float
+        try:
+            return float(arg)
+        except ValueError:
+            pass
+        # check bool
+        if arg.lower() == "true":
+            return True
+        elif arg.lower() == "false":
+            return False
+        # return any other string
+        return arg
+
+
+def parse_path_arg(arg):
+    m = re.match(r"^([^=]+?)=([^=]+?)$", arg)
+    if m is None:
+        return None
+    else:
+        arg_name, arg_value = m.groups()
+        return arg_name, parse_arg_type(arg_value)
+
+
 def str_to_animate_params(s):
     """
     Parses animation parameters
@@ -406,7 +460,7 @@ def get_cli_args():
     parser.add_argument("-i", "--max-interval", type=int, default=0,
                         help="The size of each sorting interval, in pixels. If 0, whole row is sorted. "
                              "If intervals are randomized, then this is the maximum size of the inerval.")
-    parser.add_argument("-p", "--path", type=str, default="",
+    parser.add_argument("-p", "--path", type=parse_path_args, default="",
                         help="The type of path used to sort over the image. Horizontal by default.")
     parser.add_argument("--progressive-amount", type=float, default=0,
                         help="How fast interval size should increase as one moves through the image. "
@@ -475,26 +529,12 @@ def main():
     key = PIXEL_KEY_DICT.get(args.sortkey.lower(), None)
 
     # parse pixel path, and any arguments given
-    path_split = args.path.lower().split()
-    if len(path_split) == 0:
+    path_name, path_kwargs = args.path
+    if path_name is None:
+        path = None
         path_coords = None
     else:
-        path_name, *path_args = path_split
         path = PIXEL_PATH_DICT.get(path_name, None)
-
-        path_args = [parse_path_arg(a) for a in path_args]
-        if None in path_args:
-            print("Error: Arguments for path must be all of type 'name=value'.")
-            exit()
-        path_kwargs = dict(path_args)
-        # some janky reflection to get the number of arguments that this type of path accepts
-        arg_count = path.__code__.co_argcount - 1
-        if arg_count < len(path_kwargs):
-            print("Error: Path '%s' only takes %d argument(s)." % (path_name, arg_count))
-            exit()
-
-        # get all pixels for a path ahead of time.
-        # This is because paths need to be iterated over twice, and randomness in a path may mess up the second pass.
         path_coords = path_to_list(path(img.size, **path_kwargs))
 
     sorting_args = {
@@ -533,15 +573,28 @@ def main():
             logger.info("Sorting image....")
             sort_image_with_cli_args(image=img, outfile=args.outfile, sorting_args=sorting_args, tile_args=tile_args,
                                      channel=args.channel, pixels=None, save=True)
-
     else:
         # set up animation params
         param, start, stop, n_steps = args.animate
+        # check if a path argument is being animated. Currently this required different code than regular parameters,
+        # at some point this should be abstracted
+        if param.startswith("path."):
+            if path_name is None:
+                print("Error: can't animated path parameter if path is not set.")
+                exit()
+            animate_path = True
+            param_to_animate = param[5:]
+            param_set = path_kwargs
+        else:
+            animate_path = False
+            param_to_animate = param
+            param_set = sorting_args
+
         if gif:
             # replace n_steps with the length of the gif instead
             n_steps = len(get_gif_frames(img))
         delta = (stop - start) / max(1, n_steps - 1)
-        sorting_args[param] = start
+        param_set[param_to_animate] = start
 
         gif_frames = []
         # create directory to hold temporary frames
@@ -557,12 +610,15 @@ def main():
             n_digits = len(str(len(frames)))
             format_str = "%%s%%s_frame_%%0%dd.png" % n_digits
             for f in frames:
-                print("sorting %s = %f..." % (param, sorting_args[param]))
+                print("sorting %s = %f..." % (param, param_set[param_to_animate]))
                 frame_name = format_str % (dir_path, args.outfile, i)
+                if animate_path:
+                    path_coords = path_to_list(path(img.size, **path_kwargs))
+                    sorting_args["path"] = path_coords
                 out_pixels = sort_image_with_cli_args(f, frame_name, sorting_args, tile_args, channel=args.channel,
                                                       pixels=f.getdata(), save=args.save_frames)
                 gif_frames.append(out_pixels)
-                sorting_args[param] += delta
+                param_set[param_to_animate] += delta
                 i += 1
         else:
             # cache data that will be used multiple times
@@ -574,13 +630,16 @@ def main():
 
             for i in range(n_steps):
                 # sort image according to new parameters
-                print("sorting frame %d: %s = %f..." % (i, param, sorting_args[param]))
+                print("sorting frame %d: %s = %f..." % (i, param, param_set[param_to_animate]))
                 frame_name = format_str % (dir_path, args.outfile, i)
                 # sort current frame and save it to disk
+                if animate_path:
+                    path_coords = path_to_list(path(img.size, **path_kwargs))
+                    sorting_args["path"] = path_coords
                 out_pixels = sort_image_with_cli_args(img, frame_name, sorting_args, tile_args, channel=args.channel,
                                                       pixels=original_pixels, save=args.save_frames)
                 gif_frames.append(out_pixels)
-                sorting_args[param] += delta
+                param_set[param_to_animate] += delta
                 i += 1
 
         images2gif.writeGif(args.outfile + ".gif", gif_frames, subRectangles=False)

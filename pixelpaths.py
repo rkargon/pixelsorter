@@ -35,8 +35,15 @@ def vertical_path(size):
 
 
 def draw_line(start, size, slope):
+    """
+    Draws a line from the starting point with the given slope, until the line goes out of the given bounds.
+    :param start: The starting point (x, y) for the line
+    :param size: The size of the image as (width, height). This determined the bounds for the image.
+    :param slope: The slope of the line
+    :return: Yields a set of points as coordinate (0,0)
+    """
     error = -1.0
-    if slope > 1:
+    if abs(slope) > 1:
         slope = 1/slope
         switch_xy = True
     else:
@@ -54,10 +61,19 @@ def draw_line(start, size, slope):
         if error > 0:
             dy += slope_sgn
             error -= 1
-        current_point = (dx + x0, dy + y0) if not switch_xy else (x0 + dy, y0 + dx)
+        current_point = (x0 + dx, y0 + dy) if not switch_xy else (x0 + abs(dy), y0 + slope_sgn * dx)
 
 
 def angled_path(size, angle=0):
+    """
+    Generates a set of lines across an image, with the given angle.
+    :param size: The size of the image
+    :param angle: The angle of the lines.
+    :return: A set of generators, each generator represents a line and yields a set of (x,y) coordinates.
+    All the lines go left to right.
+    """
+    # y coordinates are inverted in images, so this allows for users to input more intuitive angle values.
+    angle = -angle
     if angle % 180 == 0:
         yield from horizontal_path(size)
         return
@@ -71,7 +87,6 @@ def angled_path(size, angle=0):
         yield draw_line((x, start_y), size, slope)
     for y in range(height):
         yield draw_line((0, y), size, slope)
-
 
 
 def diagonal_path(size):
