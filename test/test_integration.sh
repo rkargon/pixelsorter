@@ -65,7 +65,7 @@ do
     # run script with ARGS to get TEST file
     EXT="${IMG##*.}"
     TEST="${IMG}.test.${EXT}"
-    ${PIXELSORT_PATH} ${ORIGINAL} -o ${TEST} ${ARGS}
+    eval ${PIXELSORT_PATH} ${ORIGINAL} -o ${TEST} ${ARGS}
     RET_CODE=$?
     # check return code to capture errors
     if [ ${RET_CODE} -ne 0 ]; then
@@ -87,6 +87,7 @@ do
         rm ${TEST}
         N_PASSED=`expr ${N_PASSED} + 1`
     else
+        # Don't delete temp file when a test fails, for debugging purposes.
         echo -e "\033[31mFAILED.\033[0m"
     fi
 
