@@ -4,7 +4,7 @@ import logging
 import os
 import re
 from math import ceil
-from random import randint, random, seed
+from random import randint, random, seed, randrange
 from urllib.request import urlopen
 
 from PIL import Image
@@ -20,7 +20,8 @@ logger = logging.getLogger(__name__)
 
 
 def sort_image(image, size, vertical=False, path=None, max_interval=0, progressive_amount=0, randomize=False,
-               edge_threshold=0, image_threshold=None, image_mask=None, key=None, discretize=0, reverse=False):
+               edge_threshold=0, image_threshold=None, image_mask=None, key=None, discretize=0, reverse=False,
+               sort_filter_args=None):
     """
     Applies pixel sorting to an image. This is done by first creating a sort mask that describes the sorting intervals,
     and then calling apply_sort_mask to the image using the generated mask.
@@ -46,14 +47,14 @@ def sort_image(image, size, vertical=False, path=None, max_interval=0, progressi
     is greater than the given threshold.
     :param image_threshold: If not None, uses pixel's brightness to determine sort intervals.
     Pixels that are outside the range [threshold, MAX - threshold] are not sorted. So a value of 0 will sort all pixels
-    (depending on the value of other arguments, of course), while a value of 1 will not sorty any pixels.
+    (depending on the value of other arguments, of course), while a value of 1 will not sort any pixels.
     :param image_mask: The image to use as an initial sorting mask. Edge data and other sorting intervals
     will be applied on top of this.
     :return: The pixels of the resulting image as a list of (R,G,B) tuples
     """
     mask = create_sort_mask(image, size, vertical, path, max_interval, progressive_amount, randomize,
                             edge_threshold, image_threshold, image_mask)
-    return apply_sort_mask(image, size, mask, vertical, path, key, discretize, reverse)
+    return apply_sort_mask(image, size, mask, vertical, path, key, discretize, reverse, sort_filter_args)
 
 
 def create_sort_mask(image, size, vertical=False, path=None, max_interval=100, progressive_amount=0, randomize=False,
@@ -161,7 +162,35 @@ def create_sort_mask(image, size, vertical=False, path=None, max_interval=100, p
     return pixel_mask
 
 
-def apply_sort_mask(image, size, sort_mask, vertical=False, path=None, key=None, discretize=0, reverse=False):
+def sort_filter(l, mirror=False, splice=0, splice_random=False):
+    if len(l) == 0:
+        return l
+    nl = list(l)
+
+    if mirror:
+        get_index = put_index = 0
+        while get_index < len(l):
+            nl[put_index] = l[get_index]
+            get_index += 1
+            if put_index >= 0:
+                put_index += 1
+            put_index *= -1
+
+    if splice_random:
+        splice_start = randrange(len(l))
+    elif splice > 0:
+        splice_start = int((len(l) - 1) * splice)
+    else:
+        splice_start = None
+
+    if splice_start is not None:
+        nl = nl[splice_start:] + nl[:splice_start]
+
+    return nl
+
+
+def apply_sort_mask(image, size, sort_mask, vertical=False, path=None, key=None, discretize=0, reverse=False,
+                    sort_filter_args=None):
     """
     Applies a sort mask to an image. The sort mask is a list of values {0, 1} that correspond to pixels in the image.
     Then, the 1's are used to separate sort intervals which are each sorted individually.
@@ -179,6 +208,9 @@ def apply_sort_mask(image, size, sort_mask, vertical=False, path=None, key=None,
     """
     out_pixels = list(image)
     width, height = size
+
+    if sort_filter_args is None:
+        sort_filter_args = {}
 
     if discretize > 0 and key is not None:
         def sort_key(p):
@@ -205,6 +237,7 @@ def apply_sort_mask(image, size, sort_mask, vertical=False, path=None, key=None,
             px_indices.append(idx)
             if sort_mask[idx] == 1 or random() < sort_mask[idx]:
                 sorted_pixels = sorted([out_pixels[i] for i in px_indices], key=sort_key, reverse=reverse)
+                sorted_pixels = sort_filter(sorted_pixels, **sort_filter_args)
                 for i in range(len(px_indices)):
                     index = px_indices[i]
                     pixel = sorted_pixels[i]
@@ -460,6 +493,8 @@ def get_cli_args():
     parser.add_argument("-i", "--max-interval", type=int, default=0,
                         help="The size of each sorting interval, in pixels. If 0, whole row is sorted. "
                              "If intervals are randomized, then this is the maximum size of the inerval.")
+    parser.add_argument("-m", "--mirror", action='store_true', default=False,
+                        help="Make sorted intervals symmetric from start to end.")
     parser.add_argument("-p", "--path", type=parse_path_args, default="",
                         help="The type of path used to sort over the image. Horizontal by default.")
     parser.add_argument("--progressive-amount", type=float, default=0,
@@ -470,6 +505,12 @@ def get_cli_args():
     parser.add_argument("-R", "--reverse", action='store_true', default=False,
                         help="Whether to reverse pixel-sorting order")
     parser.add_argument("-s", "--sortkey", type=str, default="", help="Function applied to pixels to sort them.")
+    parser.add_argument("-S", "--splice", type=float, default=0.0,
+                        help="For each sort interval, takes part of the beginning of the interval and moves it to the "
+                             "end. A value of 0 means no splicing is done, and 1 means the all elements up to the "
+                             "last are moved.")
+    parser.add_argument("--splice-random", action='store_true', default=False,
+                        help="Randomly chooses splice point. (See \"--splice\".)")
     parser.add_argument("-v", "--vertical", action='store_true', default=False,
                         help="Whether to pixel-sort vertically instead of horizontally")
     parser.add_argument("--use-tiles", action='store_true', default=False,
@@ -507,7 +548,7 @@ def main():
     if re.match(r"https?://", args.infile):
         response = urlopen(args.infile)
         img_size = int(response.getheader("Content-Length"))
-        logger.info("Downloading file (%dKB)..." % (img_size//1000))
+        logger.info("Downloading file (%dKB)..." % (img_size // 1000))
         img = Image.open(response)
     else:
         img = Image.open(args.infile)
@@ -537,6 +578,12 @@ def main():
         path = PIXEL_PATH_DICT.get(path_name, None)
         path_coords = path_to_list(path(img.size, **path_kwargs))
 
+    sort_filter_args = {
+        'mirror': args.mirror,
+        'splice': args.splice,
+        'splice_random': args.splice_random,
+    }
+
     sorting_args = {
         'discretize': args.discretize,
         'edge_threshold': args.edge_threshold,
@@ -548,6 +595,7 @@ def main():
         'progressive_amount': args.progressive_amount,
         'randomize': args.randomize,
         'reverse': args.reverse,
+        'sort_filter_args': sort_filter_args,
         'vertical': args.vertical,
     }
     if args.use_tiles:
@@ -568,7 +616,7 @@ def main():
                                                  tile_args=tile_args, channel=args.channel, pixels=None,
                                                  save=args.save_frames)
                 gif_frames.append(frame)
-            images2gif.writeGif(args.outfile + ".gif", gif_frames, subRectangles=False)
+            images2gif.writeGif(args.outfile, gif_frames, subRectangles=False)
         else:
             logger.info("Sorting image....")
             sort_image_with_cli_args(image=img, outfile=args.outfile, sorting_args=sorting_args, tile_args=tile_args,
@@ -589,11 +637,6 @@ def main():
             animate_path = False
             param_to_animate = param
             param_set = sorting_args
-
-        if gif:
-            # replace n_steps with the length of the gif instead
-            n_steps = len(get_gif_frames(img))
-        delta = (stop - start) / max(1, n_steps - 1)
         param_set[param_to_animate] = start
 
         gif_frames = []
@@ -603,46 +646,30 @@ def main():
             dir_path = args.outfile + "_frames/"
             if not os.path.exists(dir_path):
                 os.makedirs(dir_path)
-        i = 1
+
         if gif:
             frames = get_gif_frames(img)
-            # way to get filename to pad with zeroes properly
-            n_digits = len(str(len(frames)))
-            format_str = "%%s%%s_frame_%%0%dd.png" % n_digits
-            for f in frames:
-                print("sorting %s = %f..." % (param, param_set[param_to_animate]))
-                frame_name = format_str % (dir_path, args.outfile, i)
-                if animate_path:
-                    path_coords = path_to_list(path(img.size, **path_kwargs))
-                    sorting_args["path"] = path_coords
-                out_pixels = sort_image_with_cli_args(f, frame_name, sorting_args, tile_args, channel=args.channel,
-                                                      pixels=f.getdata(), save=args.save_frames)
-                gif_frames.append(out_pixels)
-                param_set[param_to_animate] += delta
-                i += 1
+            n_steps = len(frames)
         else:
-            # cache data that will be used multiple times
-            original_pixels = list(img.getdata())
+            frames = None
 
-            # way to get filename to pad with zeroes properly
-            n_digits = len(str(n_steps))
-            format_str = "%%s%%s_frame_%%0%dd.png" % n_digits
+        delta = (stop - start) / max(1, n_steps - 1)
+        n_digits = len(str(n_steps))
+        format_str = "%%s%%s_frame_%%0%dd.png" % n_digits
+        for i in range(n_steps):
+            logger.info("sorting %s = %f..." % (param, param_set[param_to_animate]))
+            frame_name = format_str % (dir_path, args.outfile, i)
+            if animate_path:
+                path_coords = path_to_list(path(img.size, **path_kwargs))
+                sorting_args["path"] = path_coords
+            f = frames[i] if gif else img
+            out_pixels = sort_image_with_cli_args(f, frame_name, sorting_args, tile_args, channel=args.channel,
+                                                  pixels=f.getdata(), save=args.save_frames)
+            gif_frames.append(out_pixels)
+            param_set[param_to_animate] += delta
+            i += 1
 
-            for i in range(n_steps):
-                # sort image according to new parameters
-                print("sorting frame %d: %s = %f..." % (i, param, param_set[param_to_animate]))
-                frame_name = format_str % (dir_path, args.outfile, i)
-                # sort current frame and save it to disk
-                if animate_path:
-                    path_coords = path_to_list(path(img.size, **path_kwargs))
-                    sorting_args["path"] = path_coords
-                out_pixels = sort_image_with_cli_args(img, frame_name, sorting_args, tile_args, channel=args.channel,
-                                                      pixels=original_pixels, save=args.save_frames)
-                gif_frames.append(out_pixels)
-                param_set[param_to_animate] += delta
-                i += 1
-
-        images2gif.writeGif(args.outfile + ".gif", gif_frames, subRectangles=False)
+        images2gif.writeGif(args.outfile, gif_frames, subRectangles=False)
 
 
 if __name__ == '__main__':
