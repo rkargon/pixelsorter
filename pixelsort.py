@@ -163,6 +163,18 @@ def create_sort_mask(image, size, vertical=False, path=None, max_interval=100, p
 
 
 def sort_filter(l, mirror=False, splice=0, splice_random=False):
+    """
+    Rearranges an interval of pixels.
+    :param l: The interval, as a list of pixels
+    :param mirror: Whether to put each element in the list alternatively at the start or end of the list, effectively mirroring a sorted list.
+    This is particularly useful with pixel paths that are looped, so that the beginning and end will not be discontinuous.
+    :param splice: A value in the range [0,1] that picks a point in the list and makes it the start of the interval
+    pixels before this element are moved to the end. A value of 0 uses the existing first element of the list as the
+    starting point, and a value of 1 makes the last element in the list be the start.
+    :param splice_random: Splices the list at a random point.
+    :return: A modified copy of the list of pixels.
+    """
+    # TODO documentation
     if len(l) == 0:
         return l
     nl = list(l)
