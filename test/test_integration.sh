@@ -1,6 +1,6 @@
 #!/bin/bash
 
-usage() { echo "Usage: $0 -p <pixelsort script> tests..." 1>&2; exit 1; }
+usage() { echo "Usage: $0 -p <pixelsort script> [-g] tests..." 1>&2; exit 1; }
 
 # when user presses Ctrl-C, stop tests and return to initial dir
 INITIAL_DIR=${PWD}
@@ -12,10 +12,13 @@ ctrl_c() {
 }
 
 # process command line args
-while getopts ":p:" opt; do
+while getopts ":p:g" opt; do
     case ${opt} in
         p)
             PIXELSORT_PATH=${OPTARG}
+            ;;
+        g)
+            GENERATE_IMAGES=1
             ;;
         \?)
             echo "Invalid option: -${OPTARG}" >&2
@@ -63,35 +66,43 @@ do
     fi
 
     # run script with ARGS to get TEST file
-    EXT="${IMG##*.}"
-    TEST="${IMG}.test.${EXT}"
-    eval ${PIXELSORT_PATH} ${ORIGINAL} -o ${TEST} ${ARGS}
-    RET_CODE=$?
-    # check return code to capture errors
-    if [ ${RET_CODE} -ne 0 ]; then
-        echo -e "\033[31mCommand \033[0m${PIXELSORT_PATH} ${ORIGINAL} -o ${TEST} ${ARGS}" \
-        "\033[31mfailed with error code ${RET_CODE}.\033[0m"
-        popd > /dev/null
-        continue
-    fi
+    if [ -z ${GENERATE_IMAGES} ]; then
+        EXT="${IMG##*.}"
+        TEST="${IMG}.test.${EXT}"
+        eval ${PIXELSORT_PATH} ${ORIGINAL} -o ${TEST} ${ARGS}
+        RET_CODE=$?
+        # check return code to capture errors
+        if [ ${RET_CODE} -ne 0 ]; then
+            echo -e "\033[31mCommand \033[0m${PIXELSORT_PATH} ${ORIGINAL} -o ${TEST} ${ARGS}" \
+            "\033[31mfailed with error code ${RET_CODE}.\033[0m"
+            popd > /dev/null
+            continue
+        fi
 
-    # check if test file got created before doing `diff`
-    if [ ! -f ${TEST} ]; then
-        echo -e "\033[31mTest image ${TEST} failed to be created.\033[0m"
-        popd > /dev/null
-        continue
-    fi
-    # compare test and reference images.
-    if [ -z "$(diff ${IMG} ${TEST})" ]; then
-        echo -e "\033[32mPASSED.\033[0m"
-        rm ${TEST}
-        N_PASSED=`expr ${N_PASSED} + 1`
+        # check if test file got created before doing `diff`
+        if [ ! -f ${TEST} ]; then
+            echo -e "\033[31mTest image ${TEST} failed to be created.\033[0m"
+            popd > /dev/null
+            continue
+        fi
+        # compare test and reference images.
+        if [ -z "$(diff ${IMG} ${TEST})" ]; then
+            echo -e "\033[32mPASSED.\033[0m"
+            rm ${TEST}
+            N_PASSED=`expr ${N_PASSED} + 1`
+        else
+            # Don't delete temp file when a test fails, for debugging purposes.
+            echo -e "\033[31mFAILED.\033[0m"
+        fi
     else
-        # Don't delete temp file when a test fails, for debugging purposes.
-        echo -e "\033[31mFAILED.\033[0m"
+        # generate image file that will later be used as a reference
+        eval ${PIXELSORT_PATH} ${ORIGINAL} -o ${IMG} ${ARGS}
+        echo
     fi
 
     popd > /dev/null
 done
 
-echo "Passed ${N_PASSED} / ${N_TESTS} tests."
+if [ -z ${GENERATE_IMAGES} ]; then
+    echo "Passed ${N_PASSED} / ${N_TESTS} tests."
+fi

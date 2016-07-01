@@ -52,34 +52,8 @@ def sort_image(image, size, vertical=False, path=None, max_interval=0, progressi
     will be applied on top of this.
     :return: The pixels of the resulting image as a list of (R,G,B) tuples
     """
-    mask = create_sort_mask(image, size, vertical, path, max_interval, progressive_amount, randomize,
-                            edge_threshold, image_threshold, image_mask)
-    return apply_sort_mask(image, size, mask, vertical, path, key, discretize, reverse, sort_filter_args)
-
-
-def create_sort_mask(image, size, vertical=False, path=None, max_interval=100, progressive_amount=0, randomize=False,
-                     edge_threshold=0, image_threshold=None, image_mask=None):
-    """
-    Creates a sort mask for an image according to the given parameters. This is a 2d list of values {0, 1} corresponding
-    to each pixel in the given image. The 1s represent the ends of sort intervals.
-    The output of this function can be passed to `apply_sort_mask` to sort an image.
-
-    (NOTE: These parameters are described in the function sort_image)
-    :param image: The image to create a mask from
-    :param size: The size of the image
-    :param vertical: Whether to use a vertical path
-    :param path: The path to use, as a list of lists of (x, y) coordinates
-    :param max_interval: The maximum sort interval
-    :param progressive_amount: The rate at which the sort interval should increase
-    :param randomize: Whether to randomize interval length
-    :param edge_threshold: Threshold for creating sort intervals based on edge detection
-    :param image_threshold: Threshold for creating sort intervals based on image color
-    :param image_mask: Image to use as a sorting mask
-
-    :return: A 2d list of values {0,1}
-    """
     width, height = size
-    pixel_mask = [0] * (width * height)
+    out_pixels = list(image)
 
     # get edge data if necessary
     if edge_threshold > 0:
@@ -89,19 +63,14 @@ def create_sort_mask(image, size, vertical=False, path=None, max_interval=100, p
     if image_threshold is not None:
         image_threshold = clamp(image_threshold, 0.0, 1.0)
 
-    # use various image data to set up sort intervals, before computing random intervals
-    for i in range(len(pixel_mask)):
-        if image_mask is not None and luma(image_mask[i]) > 128:
-            pixel_mask[i] = 1
-        # edge detection
-        if edge_data is not None and edge_data[i] > edge_threshold:
-            pixel_mask[i] = 1
-        # use image color to determine ends of sorting intervals
-        if image_threshold is not None:
-            brightness = luma(image[i])
-            t = image_threshold * 255 / 2
-            if brightness < t or brightness > 255 - t:
-                pixel_mask[i] = 1
+    if sort_filter_args is None:
+        sort_filter_args = {}
+
+    if discretize > 0 and key is not None:
+        def sort_key(p):
+            return int(key(p) / discretize)
+    else:
+        sort_key = key
 
     # if path not given, use a horizontal or vertical path
     if path is None:
@@ -134,7 +103,8 @@ def create_sort_mask(image, size, vertical=False, path=None, max_interval=100, p
 
             # get pixel coordinates of path
             i = 0
-            coords = None
+
+            px_indices = []
             # if interval is 0, just sort whole line at once
             while i < interval or interval == 0:
                 if row_idx < len(row):
@@ -151,23 +121,43 @@ def create_sort_mask(image, size, vertical=False, path=None, max_interval=100, p
                                 (pixels_sorted, width * height, 100 * pixels_sorted / float(width * height)))
 
                 idx = coords_to_index(coords, width)
-                # do edge detection if necessary
-                if pixel_mask[idx] > 0:
+
+                # use various image data to set up sort intervals, before computing random intervals
+                if image_mask is not None and luma(image_mask[idx]) > 128:
                     break
+                # edge detection
+                if edge_data is not None and edge_data[idx] > edge_threshold:
+                    break
+                # use image color to determine ends of sorting intervals
+                if image_threshold is not None:
+                    brightness = luma(image[idx])
+                    t = image_threshold * 255 / 2
+                    if brightness < t or brightness > 255 - t:
+                        break
+
+                # add current pixel to interval
+                px_indices.append(idx)
 
             # sort pixels, apply to output image
-            if coords is not None:
-                idx = coords_to_index(coords, width)
-                pixel_mask[idx] = 1
-    return pixel_mask
+            if len(px_indices) > 0:
+                sorted_pixels = sorted([out_pixels[i] for i in px_indices], key=sort_key, reverse=reverse)
+                sorted_pixels = sort_filter(sorted_pixels, **sort_filter_args)
+                for i in range(len(px_indices)):
+                    index = px_indices[i]
+                    pixel = sorted_pixels[i]
+                    out_pixels[index] = pixel
+
+    return out_pixels
 
 
 def sort_filter(l, mirror=False, splice=0, splice_random=False):
     """
     Rearranges an interval of pixels.
     :param l: The interval, as a list of pixels
-    :param mirror: Whether to put each element in the list alternatively at the start or end of the list, effectively mirroring a sorted list.
-    This is particularly useful with pixel paths that are looped, so that the beginning and end will not be discontinuous.
+    :param mirror: Whether to put each element in the list alternatively at the start or end of the list, effectively
+    mirroring a sorted list.
+    This is particularly useful with pixel paths that are looped, so that the beginning and end will not be
+    discontinuous.
     :param splice: A value in the range [0,1] that picks a point in the list and makes it the start of the interval
     pixels before this element are moved to the end. A value of 0 uses the existing first element of the list as the
     starting point, and a value of 1 makes the last element in the list be the start.
@@ -199,68 +189,6 @@ def sort_filter(l, mirror=False, splice=0, splice_random=False):
         nl = nl[splice_start:] + nl[:splice_start]
 
     return nl
-
-
-def apply_sort_mask(image, size, sort_mask, vertical=False, path=None, key=None, discretize=0, reverse=False,
-                    sort_filter_args=None):
-    """
-    Applies a sort mask to an image. The sort mask is a list of values {0, 1} that correspond to pixels in the image.
-    Then, the 1's are used to separate sort intervals which are each sorted individually.
-
-    (NOTE: These parameters are explained in more detail in `sort_image(...)` )
-    :param image: The image to sort
-    :param size: The size of the image
-    :param sort_mask: The sort mask to use, a list of {0, 1} values
-    :param vertical: Whether to sort vertically
-    :param path: The path to use, as a list of lists of (x, y) coordinates
-    :param key: Which function to order pixels by (e.g. brightness, saturation)
-    :param discretize: Whether to group key values into bins
-    :param reverse: Whether to reverse sort order.
-    :return: A sorted image.
-    """
-    out_pixels = list(image)
-    width, height = size
-
-    if sort_filter_args is None:
-        sort_filter_args = {}
-
-    if discretize > 0 and key is not None:
-        def sort_key(p):
-            return int(key(p) / discretize)
-    else:
-        sort_key = key
-
-    # if path not given, use a horizontal or vertical path
-    if path is None:
-        if vertical:
-            pixel_iterator = vertical_path(size)
-        else:
-            pixel_iterator = horizontal_path(size)
-        path = path_to_list(pixel_iterator)
-
-    # for logging progress
-    pixels_sorted = 0
-
-    # for each path
-    for row in path:
-        px_indices = []
-        for coords in row:
-            idx = coords_to_index(coords, width)
-            px_indices.append(idx)
-            if sort_mask[idx] == 1 or random() < sort_mask[idx]:
-                sorted_pixels = sorted([out_pixels[i] for i in px_indices], key=sort_key, reverse=reverse)
-                sorted_pixels = sort_filter(sorted_pixels, **sort_filter_args)
-                for i in range(len(px_indices)):
-                    index = px_indices[i]
-                    pixel = sorted_pixels[i]
-                    out_pixels[index] = pixel
-                px_indices = []
-
-            pixels_sorted += 1
-            if pixels_sorted % 200000 == 0:
-                logger.info("Sorted %d / %d pixels (%2.2f%%)..." % (pixels_sorted, width * height,
-                                                                    100 * pixels_sorted / float(width * height)))
-    return out_pixels
 
 
 def get_tile_from_image(image, size, top_left_corner, tile_size):
