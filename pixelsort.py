@@ -21,6 +21,11 @@ logger = logging.getLogger(__name__)
 
 
 class SortingArgs(collections.MutableMapping):
+    """
+    A class for storing sorting options. It inherits from collections.MutableMapping so that options can be
+    accessed and modified using the [] operator. It can also be passed as **kwargs into a function.
+    For accessing path arguments, one can use the prefix ".path", e.g. sort_args["path.angle"].
+    """
 
     def __init__(self, cli_args, size):
         """
@@ -113,6 +118,9 @@ def sort_image(image, size, vertical=False, path=None, path_kwargs=None, max_int
     :param key: The function to use for sorting, e.g. brightness or red amount.
                 This function takes a pixel and returns a value to be sorted.
     :param reverse: Whether or not to reverse the direction of the sorting
+    :param mirror: Mirrors each pixel interval after sorting.
+    :param splice: Splices each pixel interval after sorting, at the given position (from 0.0 to 1.0).
+    :param splice_random: Splices each pixel interval at a random position.
     :param edge_threshold: If greater than zero, stops sorting intervals at pixels whose "edge detection" value
     is greater than the given threshold.
     :param image_threshold: If not None, uses pixel's brightness to determine sort intervals.
@@ -393,7 +401,11 @@ def sort_image_with_cli_args(image, outfile, sorting_args, tile_args=None, chann
 
 
 def parse_path_args(arg_str):
-    # parse pixel path, and any arguments given
+    """
+    parse pixel path, and any arguments given
+    :param arg_str: The string of path arguments, in the form "path_name arg1=val1 arg2=val2 ..."
+    :return: The name of the path, and a dict holding the path arguments.
+    """
     path_split = arg_str.lower().split()
     if len(path_split) == 0:
         return None, None
@@ -401,7 +413,7 @@ def parse_path_args(arg_str):
         path_name, *path_args = path_split
         path = PIXEL_PATH_DICT.get(path_name, None)
 
-        path_args = [parse_path_arg(a) for a in path_args]
+        path_args = [parse_single_path_arg(a) for a in path_args]
         if None in path_args:
             print("Error: Arguments for path must be all of type 'name=value'.")
             exit()
@@ -414,7 +426,28 @@ def parse_path_args(arg_str):
         return path_name, path_kwargs
 
 
+def parse_single_path_arg(arg):
+    """
+    Parses a single path argument
+    :param arg: The argument in the form "arg_name=value"
+    :return: A tuple (arg_name, value)
+    """
+    m = re.match(r"^([^=]+?)=([^=]+?)$", arg)
+    if m is None:
+        return None
+    else:
+        arg_name, arg_value = m.groups()
+        return arg_name, parse_arg_type(arg_value)
+
+
 def parse_arg_type(arg):
+    """
+    Parses the type of an argument based on its string value.
+    Only checks ints, floats, and bools, defaults to string.
+     For instance, "4.0" will convert to a float(4.0)
+    :param arg: The argument value
+    :return: The value converted to the proper type.
+    """
     if type(arg) != str:
         return arg
     else:
@@ -435,15 +468,6 @@ def parse_arg_type(arg):
             return False
         # return any other string
         return arg
-
-
-def parse_path_arg(arg):
-    m = re.match(r"^([^=]+?)=([^=]+?)$", arg)
-    if m is None:
-        return None
-    else:
-        arg_name, arg_value = m.groups()
-        return arg_name, parse_arg_type(arg_value)
 
 
 def str_to_animate_params(s):
