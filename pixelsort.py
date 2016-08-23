@@ -51,6 +51,7 @@ class SortingArgs(collections.MutableMapping):
 
         self.discretize = cli_args.discretize
         self.edge_threshold = cli_args.edge_threshold
+        self.edge_data = None
         self.key = key
         self.image_threshold = cli_args.image_threshold
         self.image_mask = image_mask
@@ -95,7 +96,7 @@ class SortingArgs(collections.MutableMapping):
 
 
 def sort_image(image, size, vertical=False, path=None, path_kwargs=None, max_interval=0, progressive_amount=0, randomize=False,
-               edge_threshold=0, image_threshold=None, image_mask=None, key=None, discretize=0, reverse=False,
+               edge_threshold=0, edge_data = None, image_threshold=None, image_mask=None, key=None, discretize=0, reverse=False,
                mirror=False, splice=0, splice_random=False):
     """
     Applies pixel sorting to an image. This is done by first creating a sort mask that describes the sorting intervals,
@@ -123,6 +124,7 @@ def sort_image(image, size, vertical=False, path=None, path_kwargs=None, max_int
     :param splice_random: Splices each pixel interval at a random position.
     :param edge_threshold: If greater than zero, stops sorting intervals at pixels whose "edge detection" value
     is greater than the given threshold.
+    :param edge_data: Stores edge data for the image, if it is already cached.
     :param image_threshold: If not None, uses pixel's brightness to determine sort intervals.
     Pixels that are outside the range [threshold, MAX - threshold] are not sorted. So a value of 0 will sort all pixels
     (depending on the value of other arguments, of course), while a value of 1 will not sort any pixels.
@@ -134,10 +136,9 @@ def sort_image(image, size, vertical=False, path=None, path_kwargs=None, max_int
     out_pixels = list(image)
 
     # get edge data if necessary
-    if edge_threshold > 0:
+    if edge_threshold > 0 and edge_data is None:
         edge_data = edge_detect(image, size)
-    else:
-        edge_data = None
+
     if image_threshold is not None:
         image_threshold = clamp(image_threshold, 0.0, 1.0)
 
@@ -201,7 +202,7 @@ def sort_image(image, size, vertical=False, path=None, path_kwargs=None, max_int
                 if image_mask is not None and luma(image_mask[idx]) > 128:
                     break
                 # edge detection
-                if edge_data is not None and edge_data[idx] > edge_threshold:
+                if edge_data is not None and edge_data[idx] > edge_threshold > 0:
                     break
                 # use image color to determine ends of sorting intervals
                 if image_threshold is not None:
