@@ -529,6 +529,7 @@ def get_cli_args():
                         help="Make sorted intervals symmetric from start to end.")
     parser.add_argument("-p", "--path", type=parse_path_args, default="",
                         help="The type of path used to sort over the image. Horizontal by default.")
+    parser.add_argument("--help-paths", action='store_true', default=False, help="Display info about sorting paths.")
     parser.add_argument("--progressive-amount", type=float, default=0,
                         help="How fast interval size should increase as one moves through the image. "
                              "This is a ratio of the max interval size.")
@@ -564,8 +565,32 @@ def get_cli_args():
     return args
 
 
+def print_paths_help():
+    print("Sorting paths specify in which direction pixels are sorted in the image.\n"
+          "By default, the path is 'horizontal'.\n"
+          "The syntax for specifying sort paths is: '<path-name> [arg1=val1, arg2=val2, ...]'.\n"
+          "For detailed documentation on sort paths, see docs/PATHS.md.\n\n"
+          "The available path names are:")
+    print(" - angled-line [angle=float]:    Sort pixels in lines tilted at the given angle.")
+    print(" - circles:                      Pixels are sorted in concentric circles about the center of the image.")
+    print(" - concentric:                   Pixels are sorted in concentric rectangles.")
+    print(" - diagonal:                     Pixels are sorted in diagonal lines.")
+    print(" - diagonal-single:              Pixels sorted in a single path that moves diagonally through the image.")
+    print(" - fill-circles [radius=int]:    Covers the image in circles of the given radius")
+    print(" - horizontal:                   Pixels sorted horizontally.")
+    print(" - random-walk:                  Pixels sorted in random walks over the image.")
+    print(" - random-walk-horizontal:       Pixels sorted in random walks moving horizontally over the image. ")
+    print(" - random-walk-vertical          Pixels sorted in random walks moving vertically over the image. ")
+    print(" - vertical:                     Pixels sorted vertically.")
+
+
 def main():
     args = get_cli_args()
+
+    # print detailed help if necessary
+    if args.help_paths:
+        print_paths_help()
+        return
 
     # set up logging
     if args.log:
