@@ -26,14 +26,14 @@ from urllib.request import urlopen
 
 from PIL import Image
 
-from pixelsorter import images2gif
-from pixelsorter.edge_detection import edge_detect
-from pixelsorter.pixelkeys import PIXEL_KEY_DICT, luma
-from pixelsorter.pixelpaths import PIXEL_PATH_DICT
-from pixelsorter.pixelpaths import horizontal_path
-from pixelsorter.pixelpaths import vertical_path
-from pixelsorter.util import clamp
-from pixelsorter.util import coords_to_index
+import images2gif
+from edge_detection import edge_detect
+from pixelkeys import PIXEL_KEY_DICT, luma
+from pixelpaths import PIXEL_PATH_DICT
+from pixelpaths import horizontal_path
+from pixelpaths import vertical_path
+from util import clamp
+from util import coords_to_index
 
 # get logger for current script (even across different modules)
 logger = logging.getLogger(__name__)

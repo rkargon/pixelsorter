@@ -13,5 +13,10 @@
 # You should have received a copy of the GNU General Public License
 # along with Pixelsorting.  If not, see <http://www.gnu.org/licenses/>.
 
+from pixelsorter import edge_detection
+from pixelsorter import images2gif
+from pixelsorter import pixelkeys
+from pixelsorter import pixelpaths
+from pixelsorter import util
 
 __all__ = ['edge_detection', 'images2gif', 'pixelkeys', 'pixelpaths', 'pixelsort', 'util']

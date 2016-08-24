@@ -22,7 +22,7 @@ However, the paths produced don't have to be necessarily actual rows or columns.
 from math import sqrt, tan, radians
 from random import random
 
-from pixelsorter.util import weighted_random_choice, in_bounds, sign
+from util import weighted_random_choice, in_bounds, sign
 
 
 def horizontal_path(size):
