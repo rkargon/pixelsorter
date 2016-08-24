@@ -1,5 +1,22 @@
 #!/usr/bin/env python3
+
+#  This file is part of Pixelsorting.
+#
+# Pixelsorting is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# Pixelsorting is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with Pixelsorting.  If not, see <http://www.gnu.org/licenses/>.
+
 import argparse
+import collections
 import logging
 import os
 import re
@@ -7,14 +24,16 @@ from math import ceil
 from random import randint, random, seed, randrange
 from urllib.request import urlopen
 
-import collections
 from PIL import Image
 
-import images2gif
-from edge_detection import edge_detect
-from pixelkeys import PIXEL_KEY_DICT, luma
-from pixelpaths import vertical_path, horizontal_path, PIXEL_PATH_DICT, path_to_list
-from util import coords_to_index, clamp
+from pixelsorter import images2gif
+from pixelsorter.edge_detection import edge_detect
+from pixelsorter.pixelkeys import PIXEL_KEY_DICT, luma
+from pixelsorter.pixelpaths import PIXEL_PATH_DICT
+from pixelsorter.pixelpaths import horizontal_path
+from pixelsorter.pixelpaths import vertical_path
+from pixelsorter.util import clamp
+from pixelsorter.util import coords_to_index
 
 # get logger for current script (even across different modules)
 logger = logging.getLogger(__name__)
@@ -95,8 +114,10 @@ class SortingArgs(collections.MutableMapping):
             raise KeyError("No parameter %s in sort settings." % key)
 
 
-def sort_image(image, size, vertical=False, path=None, path_kwargs=None, max_interval=0, progressive_amount=0, randomize=False,
-               edge_threshold=0, edge_data = None, image_threshold=None, image_mask=None, key=None, discretize=0, reverse=False,
+def sort_image(image, size, vertical=False, path=None, path_kwargs=None, max_interval=0, progressive_amount=0,
+               randomize=False,
+               edge_threshold=0, edge_data=None, image_threshold=None, image_mask=None, key=None, discretize=0,
+               reverse=False,
                mirror=False, splice=0, splice_random=False):
     """
     Applies pixel sorting to an image. This is done by first creating a sort mask that describes the sorting intervals,
@@ -111,6 +132,7 @@ def sort_image(image, size, vertical=False, path=None, path_kwargs=None, max_int
     progressive_amount indicates the amount, in pixels, by which to increase the sorting interval after each row.
     :param path: The specific path used to iterate through the image, as a list of rows,
     where each row is a list of (x, y) coordinates.
+    :param path_kwargs: Arguments that should be passed to the path iterator.
     :param image: A list of tuples (R,G,B) representing the pixels of the image
     :param size: The size of the image as a tuple (width, height)
     :param vertical: Whether or not the color sorting is applied vertically (the default is horizontal)

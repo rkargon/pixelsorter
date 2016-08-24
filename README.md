@@ -72,3 +72,9 @@ One can also run the script using animated GIFs as input.
 [sort100-diagonal]: docs/figures/sort-100-diagonal.jpg
 [sort-angled-line-60]: docs/figures/sort-angled-line-60.jpg
 [sort-animated]: docs/figures/sort-animated.gif
+
+
+### License
+
+This software is licensed under the GNU GPL license, which can be found in [LICENSE.txt](LICENSE.txt).
+In short, one is free to use, modify, and redistribute this code, under the GPL license.
