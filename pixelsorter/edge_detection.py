@@ -18,8 +18,9 @@ import logging
 from math import sqrt
 
 from PIL import Image
-from pixelkeys import luma
-from util import coords_to_index
+
+from pixelsorter.keys import luma
+from pixelsorter.util import coords_to_index
 
 # get logger for current script (even across different modules)
 logger = logging.getLogger(__name__)

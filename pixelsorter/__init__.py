@@ -15,8 +15,9 @@
 
 from pixelsorter import edge_detection
 from pixelsorter import images2gif
-from pixelsorter import pixelkeys
-from pixelsorter import pixelpaths
+from pixelsorter import keys
+from pixelsorter import paths
+from pixelsorter import sort
 from pixelsorter import util
 
-__all__ = ['edge_detection', 'images2gif', 'pixelkeys', 'pixelpaths', 'pixelsort', 'util']
+__all__ = ['edge_detection', 'images2gif', 'keys', 'paths', 'sort', 'util']

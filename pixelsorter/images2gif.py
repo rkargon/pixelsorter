@@ -1065,6 +1065,28 @@ class NeuQuant:
         return a
 
 
+def get_gif_frames(img):
+    """
+    Extracts the frames from an animated gif.
+    :param img: A PIL Image object
+    :return: An array of PIL image objects, each corresponding to a frame in the animation.
+    """
+    gif_frames = []
+    n = 0
+    while img:
+        if img.mode != "RGB":
+            image = img.convert(mode="RGB")
+        else:
+            image = img
+        gif_frames.append(image)
+        n += 1
+        try:
+            img.seek(n)
+        except EOFError:
+            break
+    return gif_frames
+
+
 def main():
     parser = argparse.ArgumentParser(description='A tool for combining individual images into an animated gif.')
     parser.add_argument("frames", nargs="*", help="The frames of the animation")

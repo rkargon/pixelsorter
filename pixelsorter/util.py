@@ -13,12 +13,12 @@
 # You should have received a copy of the GNU General Public License
 # along with Pixelsorting.  If not, see <http://www.gnu.org/licenses/>.
 
-
 """
 Math and other utility functions
 """
-from math import floor
-from random import random
+
+import math
+import random
 
 
 def sign(x):
@@ -58,7 +58,7 @@ def index_to_coords(index, width):
     :param width: The width of the image
     :return: (x,y) coordinate of the pixels specified by `index`
     """
-    return index % width, floor(index / width)
+    return index % width, math.floor(index / width)
 
 
 def in_bounds(min_b, max_b, point):
@@ -76,7 +76,7 @@ def weighted_random_choice(items):
     :return: A random object, whose likelihood is proportional to its weight.
     """
     l = list(items)
-    r = random() * sum([i[1] for i in l])
+    r = random * sum([i[1] for i in l])
     for x, p in l:
         if p > r:
             return x
