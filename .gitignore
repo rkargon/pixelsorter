@@ -90,3 +90,5 @@ ENV/
 # OTHER
 .idea/*
 .DS_Store
+
+test/data/*
