@@ -76,7 +76,7 @@ def weighted_random_choice(items):
     :return: A random object, whose likelihood is proportional to its weight.
     """
     l = list(items)
-    r = random * sum([i[1] for i in l])
+    r = random.random() * sum([i[1] for i in l])
     for x, p in l:
         if p > r:
             return x
